@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import { WagmiProviderWrapper } from "@/components/providers/wagmi-provider"
 import "./globals.css";
 
 const poppins = Poppins({
@@ -26,8 +27,10 @@ export default function RootLayout({
       <body
         className={`${poppins.variable} antialiased`}
       >
+        <WagmiProviderWrapper>
           <Suspense fallback={null}>{children}</Suspense>
           <Analytics />
+        </WagmiProviderWrapper>
       </body>
     </html>
   );

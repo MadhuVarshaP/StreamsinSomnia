@@ -3,9 +3,11 @@
 import type React from "react"
 import Link from "next/link"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { AnimatedBackground } from "./animated-background"
+import { WalletConnect } from "./wallet/wallet-connect"
+import { NetworkSwitcher } from "./wallet/network-switcher"
+import { NetworkGuard } from "./wallet/network-guard"
 import { Menu } from "lucide-react"
 
 const LINKS = [
@@ -34,22 +36,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              className="relative overflow-hidden bg-black/40 border-2 border-lime-500/30 text-[#f5eada] hover:bg-lime-500/10 hover:border-lime-500/50 shadow-lg hover:shadow-lime-500/20 transition-all duration-300 backdrop-blur-xl group"
-              onClick={() => alert("Connect wallet (placeholder)")}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-lime-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-lime-400 animate-pulse" />
-                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
-                  <div className="w-2 h-2 rounded-full bg-magenta-400 animate-pulse" style={{ animationDelay: '1s' }} />
-                </div>
-                <span className="font-medium">Connect Wallet</span>
-                <div className="w-1 h-1 rounded-full bg-[#f5eada]/40 group-hover:bg-[#f5eada]/60 transition-colors duration-300" />
-              </div>
-            </Button>
+            <NetworkSwitcher />
+            <WalletConnect />
           </div>
         </div>
       </header>
@@ -89,7 +77,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="min-h-[calc(100dvh-56px)] p-4 md:p-6">{children}</main>
+        <main className="min-h-[calc(100dvh-56px)] p-4 md:p-6">
+          <NetworkGuard>
+            {children}
+          </NetworkGuard>
+        </main>
       </div>
     </div>
   )

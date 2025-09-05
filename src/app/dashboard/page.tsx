@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/ca
 import { StreamChart } from "../../components/charts/stream-chart"
 import { WalletBalances } from "../../components/cards/wallet-balances"
 import { PayoutsTable } from "../../components/tables/payouts-table"
+import { WalletInfo } from "../../components/wallet/wallet-info"
 import { motion } from "framer-motion"
 import { TrendingUp, Activity, Zap } from "lucide-react"
 
@@ -181,7 +182,10 @@ export default function DashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
         </Card>
 
-        <WalletBalances />
+        <div className="grid grid-cols-1 gap-6">
+         
+          <WalletBalances />
+        </div>
         <PayoutsTable />
         </motion.div>
       </div>

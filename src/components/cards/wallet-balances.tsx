@@ -112,7 +112,6 @@ export function WalletBalances() {
                   </div>
                   {b.label}
                 </CardTitle>
-                <div className={`h-2 w-2 rounded-full ${getStatusColor(b.label)} animate-pulse`} />
               </div>
             </CardHeader>
             

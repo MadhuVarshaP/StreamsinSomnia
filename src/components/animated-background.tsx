@@ -1,9 +1,14 @@
 "use client"
 
 import { motion, useMotionTemplate, useSpring } from "framer-motion"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 export function AnimatedBackground() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
   const angle = useSpring(45, { stiffness: 40, damping: 20, mass: 1.2 })
   const angle2 = useSpring(135, { stiffness: 30, damping: 25, mass: 1.5 })
   const angle3 = useSpring(225, { stiffness: 35, damping: 22, mass: 1.3 })
@@ -44,6 +49,28 @@ export function AnimatedBackground() {
   const gradient1 = useMotionTemplate`linear-gradient(${angle}deg, rgba(10,10,12,1) 0%, rgba(20,15,25,1) 30%, rgba(15,10,20,1) 70%, rgba(8,8,12,1) 100%)`
   const gradient2 = useMotionTemplate`radial-gradient(ellipse at 20% 30%, rgba(0,255,136,0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, rgba(255,0,128,0.12) 0%, transparent 50%)`
   const gradient3 = useMotionTemplate`conic-gradient(from ${angle2}deg at 50% 50%, rgba(0,212,255,0.08) 0deg, rgba(0,255,136,0.12) 120deg, rgba(255,0,128,0.10) 240deg, rgba(0,212,255,0.08) 360deg)`
+
+  // Show static background during SSR to prevent hydration mismatch
+  if (!isClient) {
+    return (
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div 
+          aria-hidden 
+          style={{ 
+            background: 'linear-gradient(45deg, rgba(10,10,12,1) 0%, rgba(20,15,25,1) 30%, rgba(15,10,20,1) 70%, rgba(8,8,12,1) 100%)'
+          }} 
+          className="absolute inset-0" 
+        />
+        <div 
+          aria-hidden 
+          style={{ 
+            background: 'radial-gradient(ellipse at 20% 30%, rgba(0,255,136,0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, rgba(255,0,128,0.12) 0%, transparent 50%)'
+          }} 
+          className="absolute inset-0" 
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden">
@@ -140,23 +167,39 @@ function GridPattern() {
   )
 }
 
+// Deterministic hash function for consistent server/client rendering
+function hash(str: string): number {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  return Math.abs(hash)
+}
+
 function Particles() {
-  const particles = new Array(25).fill(0).map((_, i) => ({
-    id: i,
-    size: Math.random() * 3 + 1,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    color: [
-      "rgba(0,255,136,0.4)",
-      "rgba(255,0,128,0.3)", 
-      "rgba(0,212,255,0.3)",
-      "rgba(255,255,0,0.3)",
-      "rgba(255,102,0,0.3)",
-      "rgba(245,234,218,0.2)"
-    ][Math.floor(Math.random() * 6)],
-    duration: 8 + Math.random() * 12,
-    delay: Math.random() * 5,
-  }))
+  const particles = new Array(25).fill(0).map((_, i) => {
+    const seed = `particle-${i}`
+    const hashValue = hash(seed)
+    
+    return {
+      id: i,
+      size: (hashValue % 300) / 100 + 1, // 1-4 range
+      x: (hashValue % 10000) / 100, // 0-100 range
+      y: ((hashValue >> 8) % 10000) / 100, // 0-100 range
+      color: [
+        "rgba(0,255,136,0.4)",
+        "rgba(255,0,128,0.3)", 
+        "rgba(0,212,255,0.3)",
+        "rgba(255,255,0,0.3)",
+        "rgba(255,102,0,0.3)",
+        "rgba(245,234,218,0.2)"
+      ][hashValue % 6],
+      duration: 8 + (hashValue % 1200) / 100, // 8-20 range
+      delay: (hashValue % 500) / 100, // 0-5 range
+    }
+  })
 
   return (
     <div aria-hidden className="absolute inset-0">
