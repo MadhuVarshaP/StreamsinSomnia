@@ -6,6 +6,8 @@ import { StreamChart } from "../../components/charts/stream-chart"
 import { WalletBalances } from "../../components/cards/wallet-balances"
 import { PayoutsTable } from "../../components/tables/payouts-table"
 import { WalletInfo } from "../../components/wallet/wallet-info"
+import { NFTMarketplace } from "../../components/marketplace/nft-marketplace"
+import { RoyaltyTracker } from "../../components/royalty/royalty-tracker"
 import { motion } from "framer-motion"
 import { TrendingUp, Activity, Zap } from "lucide-react"
 
@@ -182,10 +184,17 @@ export default function DashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
         </Card>
 
-        <div className="grid grid-cols-1 gap-6">
-         
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <WalletInfo />
           <WalletBalances />
         </div>
+        
+        {/* Royalty Tracker */}
+        <RoyaltyTracker />
+        
+        {/* NFT Marketplace */}
+        <NFTMarketplace />
+        
         <PayoutsTable />
         </motion.div>
       </div>

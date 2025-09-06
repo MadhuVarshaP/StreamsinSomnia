@@ -21,7 +21,7 @@ export default function LandingPage() {
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
                   <div className="w-2 h-2 rounded-full bg-magenta-400 animate-pulse" style={{ animationDelay: '1s' }} />
                 </div>
-                <span className="font-medium">Launch App</span>
+                <span className="font-medium">Connect Wallet</span>
                 <div className="w-1 h-1 rounded-full bg-[#f5eada]/40 group-hover:bg-[#f5eada]/60 transition-colors duration-300" />
               </div>
             </Button>

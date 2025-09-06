@@ -3,7 +3,7 @@ import { mainnet, sepolia, polygon, arbitrum, optimism } from 'wagmi/chains'
 import { injected, metaMask, walletConnect } from 'wagmi/connectors'
 import { defineChain } from 'viem'
 
-export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'your-project-id'
+export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
 
 // Define Somnia testnet
 export const somniaTestnet = defineChain({

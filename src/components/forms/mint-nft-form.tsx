@@ -2,33 +2,91 @@
 
 import type React from "react"
 import { useState } from "react"
+import { useAccount } from "wagmi"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { motion } from "framer-motion"
-import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon } from "lucide-react"
+import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon, CheckCircle } from "lucide-react"
+import { useStreamingRoyaltyNFT } from "@/hooks/use-contracts"
+import { toast } from "sonner"
+import { formatAddress } from "@/lib/utils"
 
-type Split = { handle: string; percent: number }
+type Split = { address: string; percent: number }
 
 export function MintNftForm() {
+  const { address, isConnected } = useAccount()
+  const { mintNFT, isPending, isConfirming, isConfirmed } = useStreamingRoyaltyNFT()
+  
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
   const [splits, setSplits] = useState<Split[]>([
-    { handle: "@Artist", percent: 70 },
-    { handle: "@DAO", percent: 30 },
+    { address: "", percent: 70 },
+    { address: "", percent: 30 },
   ])
   const [image, setImage] = useState<File | null>(null)
+  const [royaltyBps, setRoyaltyBps] = useState(1000) // 10% default
 
-  const addSplit = () => setSplits((s) => [...s, { handle: "", percent: 0 }])
+  const addSplit = () => setSplits((s) => [...s, { address: "", percent: 0 }])
   const removeSplit = (i: number) => setSplits((s) => s.filter((_, idx) => idx !== i))
   const updateSplit = (i: number, patch: Partial<Split>) =>
     setSplits((s) => s.map((v, idx) => (idx === i ? { ...v, ...patch } : v)))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Validate Ethereum address
+  const isValidAddress = (addr: string) => {
+    return /^0x[a-fA-F0-9]{40}$/.test(addr)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert("Mint NFT (placeholder)\n\n" + JSON.stringify({ name, desc, splits, image: image?.name }, null, 2))
+    
+    if (!isConnected || !address) {
+      toast.error("Please connect your wallet first")
+      return
+    }
+
+    if (totalPercent !== 100) {
+      toast.error("Total percentage must equal 100%")
+      return
+    }
+
+    if (!name || !desc) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    // Validate all addresses
+    const invalidAddresses = splits.filter(split => !isValidAddress(split.address))
+    if (invalidAddresses.length > 0) {
+      toast.error("Please enter valid Ethereum addresses for all recipients")
+      return
+    }
+
+    try {
+      // Create token URI (in a real app, you'd upload to IPFS)
+      const tokenURI = `https://api.somnia.streams/nft/${Date.now()}`
+      
+      // Use the deployed RoyaltySplitter contract
+      const splitterAddress = "0xa5820d0DC4F9B79c7336A0661e0F96aBeF8c7bd8"
+      
+      toast.loading("Minting NFT...", { id: "mint" })
+      
+      await mintNFT(address, tokenURI, splitterAddress, royaltyBps)
+      
+      toast.success("NFT minted successfully!", { id: "mint" })
+      
+      // Reset form
+      setName("")
+      setDesc("")
+      setSplits([{ address: "", percent: 70 }, { address: "", percent: 30 }])
+      setImage(null)
+      
+    } catch (err) {
+      console.error("Mint error:", err)
+      toast.error("Failed to mint NFT. Please try again.", { id: "mint" })
+    }
   }
 
   const totalPercent = splits.reduce((a, b) => a + (Number(b.percent) || 0), 0)
@@ -126,6 +184,35 @@ export function MintNftForm() {
               )}
             </motion.div>
 
+            {/* Royalty Percentage */}
+            <motion.div 
+              className="space-y-2"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                Royalty Percentage
+              </Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="10"
+                  value={royaltyBps / 10}
+                  onChange={(e) => setRoyaltyBps(Number(e.target.value) * 10)}
+                  className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
+                  placeholder="10"
+                />
+                <span className="text-sm text-[#f5eada]/60">%</span>
+              </div>
+              <p className="text-xs text-[#f5eada]/60">
+                Royalty percentage for secondary sales (e.g., 10% = 1000 basis points)
+              </p>
+            </motion.div>
+
             {/* Royalty Splits */}
             <motion.div 
               className="space-y-4"
@@ -153,18 +240,58 @@ export function MintNftForm() {
                 {splits.map((s, i) => (
                   <motion.div 
                     key={i} 
-                    className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_120px_100px] p-4 rounded-lg bg-black/20 border border-lime-500/10"
+                    className="space-y-2 p-4 rounded-lg bg-black/20 border border-lime-500/10"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 + i * 0.1 }}
                   >
-                    <Input
-                      placeholder="@handle"
-                      value={s.handle}
-                      onChange={(e) => updateSplit(i, { handle: e.target.value })}
-                      className="bg-black/40 border-lime-500/20 text-[#f5eada] placeholder:text-[#f5eada]/40 focus:border-lime-500/40 focus:ring-lime-500/20"
-                      required
-                    />
+                    <div className="text-xs text-[#f5eada]/60 font-medium">Recipient {i + 1}</div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_120px_100px]">
+                    <div className="relative">
+                      <Input
+                        placeholder="0x..."
+                        value={s.address ? formatAddress(s.address, 4) : ""}
+                        onChange={(e) => {
+                          // If user is typing, allow them to type
+                          // If they paste a full address, store it but show short form
+                          const inputValue = e.target.value
+                          if (inputValue.length > 10) {
+                            // If it looks like a full address, store it but show short form
+                            if (isValidAddress(inputValue)) {
+                              updateSplit(i, { address: inputValue })
+                            } else {
+                              updateSplit(i, { address: inputValue })
+                            }
+                          } else {
+                            updateSplit(i, { address: inputValue })
+                          }
+                        }}
+                        onPaste={(e) => {
+                          e.preventDefault()
+                          const pastedText = e.clipboardData.getData('text')
+                          if (isValidAddress(pastedText)) {
+                            updateSplit(i, { address: pastedText })
+                          } else {
+                            updateSplit(i, { address: pastedText })
+                          }
+                        }}
+                        className={`bg-black/40 text-[#f5eada] placeholder:text-[#f5eada]/40 pr-20 ${
+                          s.address && !isValidAddress(s.address)
+                            ? 'border-red-500/50 focus:border-red-500/70 focus:ring-red-500/20'
+                            : 'border-lime-500/20 focus:border-lime-500/40 focus:ring-lime-500/20'
+                        }`}
+                        required
+                      />
+                      {s.address && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs font-mono">
+                          {isValidAddress(s.address) ? (
+                            <span className="text-green-400">✓</span>
+                          ) : (
+                            <span className="text-red-400">✗</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <Input
                       type="number"
                       min={0}
@@ -184,6 +311,7 @@ export function MintNftForm() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    </div>
                   </motion.div>
                 ))}
               </div>
@@ -207,15 +335,35 @@ export function MintNftForm() {
 
           <CardFooter className="relative z-10 flex justify-end pt-6">
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: isPending || isConfirming ? 1 : 1.02 }}
+              whileTap={{ scale: isPending || isConfirming ? 1 : 0.98 }}
             >
               <Button 
                 type="submit"
-                className="bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600 shadow-lg hover:shadow-lime-500/25 transition-all duration-300 border-0 px-8 py-3"
+                disabled={isPending || isConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address))}
+                className="bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600 shadow-lg hover:shadow-lime-500/25 transition-all duration-300 border-0 px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Mint NFT
+                {isPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    Preparing...
+                  </>
+                ) : isConfirming ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    Confirming...
+                  </>
+                ) : isConfirmed ? (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Minted!
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Mint NFT
+                  </>
+                )}
               </Button>
             </motion.div>
           </CardFooter>
