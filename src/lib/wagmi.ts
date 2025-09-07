@@ -16,16 +16,16 @@ export const somniaTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://testnet-rpc.somnia.network'],
+      http: ['https://dream-rpc.somnia.network'],
     },
     public: {
-      http: ['https://testnet-rpc.somnia.network'],
+      http: ['https://dream-rpc.somnia.network'],
     },
   },
   blockExplorers: {
     default: {
-      name: 'Somnia Explorer',
-      url: 'https://testnet-explorer.somnia.network',
+      name: 'Shannon Explorer',
+      url: 'https://shannon-explorer.somnia.network',
     },
   },
   testnet: true,

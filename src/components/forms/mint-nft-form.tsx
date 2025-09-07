@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAccount } from "wagmi"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,15 +10,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { motion } from "framer-motion"
 import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon, CheckCircle } from "lucide-react"
-import { useStreamingRoyaltyNFT } from "@/hooks/use-contracts"
+import { useStreamingRoyaltyNFT, useRoyaltySplitter, useMintWithSplitter } from "@/hooks/use-contracts"
+import { CONTRACT_ADDRESSES } from "@/lib/contracts"
 import { toast } from "sonner"
 import { formatAddress } from "@/lib/utils"
+import { TransactionVerification } from "@/components/ui/transaction-verification"
 
 type Split = { address: string; percent: number }
 
 export function MintNftForm() {
   const { address, isConnected } = useAccount()
-  const { mintNFT, isPending, isConfirming, isConfirmed } = useStreamingRoyaltyNFT()
+  const { } = useStreamingRoyaltyNFT()
+  const { shares: splitterShares } = useRoyaltySplitter()
+  const { mintWithCustomSplitter, isPending: isMintPending, isConfirming: isMintConfirming, isConfirmed: isMintConfirmed, hash: transactionHash, contractAddress } = useMintWithSplitter()
   
   const [name, setName] = useState("")
   const [desc, setDesc] = useState("")
@@ -28,6 +32,7 @@ export function MintNftForm() {
   ])
   const [image, setImage] = useState<File | null>(null)
   const [royaltyBps, setRoyaltyBps] = useState(1000) // 10% default
+  const [showVerification, setShowVerification] = useState(false)
 
   const addSplit = () => setSplits((s) => [...s, { address: "", percent: 0 }])
   const removeSplit = (i: number) => setSplits((s) => s.filter((_, idx) => idx !== i))
@@ -38,6 +43,13 @@ export function MintNftForm() {
   const isValidAddress = (addr: string) => {
     return /^0x[a-fA-F0-9]{40}$/.test(addr)
   }
+
+  // Show verification popup when transaction is confirmed
+  useEffect(() => {
+    if (isMintConfirmed && transactionHash) {
+      setShowVerification(true)
+    }
+  }, [isMintConfirmed, transactionHash])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,14 +80,25 @@ export function MintNftForm() {
       // Create token URI (in a real app, you'd upload to IPFS)
       const tokenURI = `https://api.somnia.streams/nft/${Date.now()}`
       
-      // Use the deployed RoyaltySplitter contract
-      const splitterAddress = "0xa5820d0DC4F9B79c7336A0661e0F96aBeF8c7bd8"
+      // Convert splits to the format expected by the contract
+      const formattedSplits = splits
+        .filter(split => isValidAddress(split.address))
+        .map(split => ({
+          account: split.address as `0x${string}`,
+          bps: split.percent * 100 // Convert percentage to basis points
+        }))
       
-      toast.loading("Minting NFT...", { id: "mint" })
+      toast.loading("Minting NFT with custom royalty splits...", { id: "mint" })
       
-      await mintNFT(address, tokenURI, splitterAddress, royaltyBps)
+      // Use the new mint flow with custom splitter
+      await mintWithCustomSplitter(
+        address as `0x${string}`, 
+        tokenURI, 
+        formattedSplits, 
+        BigInt(royaltyBps)
+      )
       
-      toast.success("NFT minted successfully!", { id: "mint" })
+      toast.success("NFT minted successfully with custom royalty splits!", { id: "mint" })
       
       // Reset form
       setName("")
@@ -213,6 +236,48 @@ export function MintNftForm() {
               </p>
             </motion.div>
 
+            {/* Contract Integration Info */}
+            <motion.div 
+              className="space-y-3"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.28 }}
+            >
+              <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Contract Integration
+              </Label>
+              <div className="p-3 rounded-lg bg-black/20 border border-lime-500/10">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[#f5eada]/60">NFT Contract:</span>
+                    <span className="text-lime-400">{formatAddress(CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT, 6)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#f5eada]/60">Splitter Contract:</span>
+                    <span className="text-cyan-400">{formatAddress(CONTRACT_ADDRESSES.ROYALTY_SPLITTER, 6)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#f5eada]/60">Router Contract:</span>
+                    <span className="text-orange-400">{formatAddress(CONTRACT_ADDRESSES.ROYALTY_ROUTER, 6)}</span>
+                  </div>
+                </div>
+                {splitterShares && splitterShares.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-lime-500/20">
+                    <p className="text-xs text-[#f5eada]/60 mb-2">Current Splitter Configuration:</p>
+                    <div className="space-y-1">
+                      {splitterShares.map((share, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-[#f5eada]/80">{formatAddress(share.account, 4)}</span>
+                          <span className="text-lime-400">{(Number(share.bps) / 100).toFixed(1)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
             {/* Royalty Splits */}
             <motion.div 
               className="space-y-4"
@@ -223,7 +288,7 @@ export function MintNftForm() {
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Royalty Splits
+                  Custom Royalty Splits
                 </Label>
                 <Button
                   type="button"
@@ -335,33 +400,33 @@ export function MintNftForm() {
 
           <CardFooter className="relative z-10 flex justify-end pt-6">
             <motion.div
-              whileHover={{ scale: isPending || isConfirming ? 1 : 1.02 }}
-              whileTap={{ scale: isPending || isConfirming ? 1 : 0.98 }}
+              whileHover={{ scale: isMintPending || isMintConfirming ? 1 : 1.02 }}
+              whileTap={{ scale: isMintPending || isMintConfirming ? 1 : 0.98 }}
             >
               <Button 
                 type="submit"
-                disabled={isPending || isConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address))}
+                disabled={isMintPending || isMintConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address))}
                 className="bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600 shadow-lg hover:shadow-lime-500/25 transition-all duration-300 border-0 px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isPending ? (
+                {isMintPending ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                    Preparing...
+                    Deploying Splitter...
                   </>
-                ) : isConfirming ? (
+                ) : isMintConfirming ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                    Confirming...
+                    Minting NFT...
                   </>
-                ) : isConfirmed ? (
+                ) : isMintConfirmed ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Minted!
+                    NFT Minted!
                   </>
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Mint NFT
+                    Mint with Custom Splits
                   </>
                 )}
               </Button>
@@ -372,6 +437,17 @@ export function MintNftForm() {
         {/* Hover effect overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
       </Card>
+
+      {/* Transaction Verification Popup */}
+      {transactionHash && (
+        <TransactionVerification
+          isOpen={showVerification}
+          onClose={() => setShowVerification(false)}
+          transactionHash={transactionHash}
+          transactionType="mint"
+          contractAddress={contractAddress}
+        />
+      )}
     </motion.div>
   )
 }

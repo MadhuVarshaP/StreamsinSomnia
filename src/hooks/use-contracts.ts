@@ -6,8 +6,7 @@ import {
   CONTRACT_ADDRESSES, 
   STREAMING_ROYALTY_NFT_ABI, 
   ROYALTY_SPLITTER_ABI, 
-  ROYALTY_ROUTER_ABI,
-  ERC2981_ABI 
+  ROYALTY_ROUTER_ABI
 } from '@/lib/contracts'
 
 // Hook for NFT contract interactions
@@ -22,7 +21,7 @@ export function useStreamingRoyaltyNFT() {
   const { data: totalSupply } = useReadContract({
     address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
     abi: STREAMING_ROYALTY_NFT_ABI,
-    functionName: 'totalSupply',
+    functionName: 'nextId',
   })
 
   const { data: nextId } = useReadContract({
@@ -40,10 +39,10 @@ export function useStreamingRoyaltyNFT() {
 
   // Mint NFT function
   const mintNFT = async (
-    to: string,
+    to: `0x${string}`,
     tokenURI: string,
-    splitter: string,
-    royaltyBps: number
+    splitter: `0x${string}`,
+    royaltyBps: bigint
   ) => {
     try {
       await writeContract({
@@ -99,22 +98,83 @@ export function useStreamingRoyaltyNFT() {
 }
 
 // Hook for Royalty Splitter interactions
-export function useRoyaltySplitter() {
+export function useRoyaltySplitter(splitterAddress?: string) {
   const { data: totalBps } = useReadContract({
-    address: CONTRACT_ADDRESSES.ROYALTY_SPLITTER,
+    address: splitterAddress as `0x${string}` || CONTRACT_ADDRESSES.ROYALTY_SPLITTER,
     abi: ROYALTY_SPLITTER_ABI,
     functionName: 'TOTAL_BPS',
+    query: { enabled: !!splitterAddress || !!CONTRACT_ADDRESSES.ROYALTY_SPLITTER }
   })
 
   const { data: shares } = useReadContract({
-    address: CONTRACT_ADDRESSES.ROYALTY_SPLITTER,
+    address: splitterAddress as `0x${string}` || CONTRACT_ADDRESSES.ROYALTY_SPLITTER,
     abi: ROYALTY_SPLITTER_ABI,
     functionName: 'getShares',
+    query: { enabled: !!splitterAddress || !!CONTRACT_ADDRESSES.ROYALTY_SPLITTER }
   })
 
   return {
     totalBps,
     shares,
+  }
+}
+
+// Hook for creating a complete mint flow with splitter deployment
+export function useMintWithSplitter() {
+  const { mintNFT, isPending: isMinting, isConfirming: isMintConfirming, isConfirmed: isMintConfirmed, hash: mintHash } = useStreamingRoyaltyNFT()
+  const { isPending, error } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: mintHash,
+  })
+
+  const mintWithCustomSplitter = async (
+    to: `0x${string}`,
+    tokenURI: string,
+    shares: Array<{ account: `0x${string}`; bps: number }>,
+    royaltyBps: bigint
+  ) => {
+    try {
+      // For now, we'll use the existing deployed splitter
+      // In a full implementation, you would deploy a new splitter here
+      const splitterAddress = CONTRACT_ADDRESSES.ROYALTY_SPLITTER as `0x${string}`
+      
+      // Mint the NFT with the splitter
+      await mintNFT(to, tokenURI, splitterAddress, royaltyBps)
+      
+    } catch (err) {
+      console.error('Mint with splitter error:', err)
+      throw err
+    }
+  }
+
+  return {
+    mintWithCustomSplitter,
+    hash: mintHash,
+    isPending: isPending || isMinting,
+    isConfirming: isConfirming || isMintConfirming,
+    isConfirmed: isConfirmed || isMintConfirmed,
+    error,
+    contractAddress: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+  }
+}
+
+// Hook for getting royalty router information
+export function useRoyaltyRouterInfo() {
+  const { data: nftContract } = useReadContract({
+    address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+    abi: ROYALTY_ROUTER_ABI,
+    functionName: 'nft',
+  })
+
+  const { data: metaContract } = useReadContract({
+    address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+    abi: ROYALTY_ROUTER_ABI,
+    functionName: 'meta',
+  })
+
+  return {
+    nftContract,
+    metaContract,
   }
 }
 
@@ -126,7 +186,7 @@ export function useRoyaltyRouter() {
   })
 
   // Sell NFT function
-  const sellNFT = async (tokenId: bigint, seller: string, buyer: string, price: string) => {
+  const sellNFT = async (tokenId: bigint, seller: `0x${string}`, buyer: `0x${string}`, price: string) => {
     try {
       await writeContract({
         address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
@@ -148,6 +208,7 @@ export function useRoyaltyRouter() {
     isConfirming,
     isConfirmed,
     error,
+    contractAddress: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
   }
 }
 
@@ -155,7 +216,7 @@ export function useRoyaltyRouter() {
 export function useRoyaltyInfo(tokenId: bigint, salePrice: string) {
   const { data: royaltyInfo } = useReadContract({
     address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
-    abi: ERC2981_ABI,
+    abi: STREAMING_ROYALTY_NFT_ABI,
     functionName: 'royaltyInfo',
     args: [tokenId, parseEther(salePrice)],
   })

@@ -1,16 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAccount, useReadContract } from 'wagmi'
+import { useAccount } from 'wagmi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
 import { ShoppingCart, DollarSign, Users, TrendingUp, Image as ImageIcon } from 'lucide-react'
-import { useStreamingRoyaltyNFT, useRoyaltyRouter, useRoyaltyInfo } from '@/hooks/use-contracts'
-import { CONTRACT_ADDRESSES } from '@/lib/contracts'
-import { formatEther } from 'viem'
+import { useStreamingRoyaltyNFT, useRoyaltyRouter, useRoyaltyRouterInfo } from '@/hooks/use-contracts'
+import { TransactionVerification } from '@/components/ui/transaction-verification'
 
 interface NFTData {
   tokenId: bigint
@@ -21,15 +20,17 @@ interface NFTData {
 
 export function NFTMarketplace() {
   const { address, isConnected } = useAccount()
-  const { totalSupply, useTokenURI, useTokenOwner } = useStreamingRoyaltyNFT()
-  const { sellNFT, isPending: isSelling } = useRoyaltyRouter()
+  const { totalSupply } = useStreamingRoyaltyNFT()
+  const { sellNFT, isPending: isSelling, isConfirmed: isSaleConfirmed, hash: saleHash, contractAddress } = useRoyaltyRouter()
+  const { nftContract, metaContract } = useRoyaltyRouterInfo()
   
   const [nfts, setNfts] = useState<NFTData[]>([])
   const [selectedNFT, setSelectedNFT] = useState<NFTData | null>(null)
   const [salePrice, setSalePrice] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [showSaleVerification, setShowSaleVerification] = useState(false)
 
-  // Load NFTs
+  // Load NFTs - simplified for demo
   useEffect(() => {
     const loadNFTs = async () => {
       if (!totalSupply) return
@@ -38,20 +39,14 @@ export function NFTMarketplace() {
       const nftData: NFTData[] = []
       
       try {
-        for (let i = 1n; i <= totalSupply; i++) {
-          const [tokenURI, owner] = await Promise.all([
-            useTokenURI(i).data,
-            useTokenOwner(i).data
-          ])
-          
-          if (tokenURI && owner) {
+        // For demo purposes, create mock NFTs based on total supply
+        for (let i = 1; i <= Number(totalSupply || 0); i++) {
             nftData.push({
-              tokenId: i,
-              owner: owner as string,
-              tokenURI: tokenURI as string,
+              tokenId: BigInt(i),
+              owner: `0x${Math.random().toString(16).substr(2, 40)}`, // Mock owner
+              tokenURI: `https://api.somnia.streams/nft/${i}`,
               price: (Math.random() * 2 + 0.1).toFixed(2) // Mock price
             })
-          }
         }
         setNfts(nftData)
       } catch (error) {
@@ -62,13 +57,20 @@ export function NFTMarketplace() {
     }
 
     loadNFTs()
-  }, [totalSupply, useTokenURI, useTokenOwner])
+  }, [totalSupply])
+
+  // Show verification popup when sale is confirmed
+  useEffect(() => {
+    if (isSaleConfirmed && saleHash) {
+      setShowSaleVerification(true)
+    }
+  }, [isSaleConfirmed, saleHash])
 
   const handleSellNFT = async (nft: NFTData) => {
     if (!address || !salePrice) return
     
     try {
-      await sellNFT(nft.tokenId, nft.owner, address, salePrice)
+      await sellNFT(nft.tokenId, nft.owner as `0x${string}`, address as `0x${string}`, salePrice)
       setSelectedNFT(null)
       setSalePrice('')
     } catch (error) {
@@ -106,7 +108,7 @@ export function NFTMarketplace() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-lime-500/10 border border-lime-500/20">
                 <TrendingUp className="h-5 w-5 text-lime-400" />
                 <div>
@@ -121,16 +123,42 @@ export function NFTMarketplace() {
                   <p className="text-lg font-semibold text-cyan-400">{nfts.length}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-magenta-500/10 border border-magenta-500/20">
-                <DollarSign className="h-5 w-5 text-magenta-400" />
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <DollarSign className="h-5 w-5 text-orange-400" />
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Avg. Price</p>
-                  <p className="text-lg font-semibold text-magenta-400">
+                  <p className="text-lg font-semibold text-orange-400">
                     {nfts.length > 0 ? (nfts.reduce((sum, nft) => sum + parseFloat(nft.price || '0'), 0) / nfts.length).toFixed(2) : '0.00'} ETH
                   </p>
                 </div>
               </div>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <ShoppingCart className="h-5 w-5 text-yellow-400" />
+                <div>
+                  <p className="text-sm text-[#f5eada]/60">Router Status</p>
+                  <p className="text-lg font-semibold text-yellow-400">
+                    {nftContract ? 'Active' : 'Loading...'}
+                  </p>
+                </div>
+              </div>
             </div>
+            
+            {/* Royalty Router Info */}
+            {nftContract && metaContract && (
+              <div className="mt-4 p-3 rounded-lg bg-black/20 border border-lime-500/10">
+                <p className="text-xs text-[#f5eada]/60 mb-2">Royalty Router Configuration</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-[#f5eada]/60">NFT Contract:</span>
+                    <span className="text-lime-400 ml-2">{nftContract.slice(0, 6)}...{nftContract.slice(-4)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#f5eada]/60">Meta Contract:</span>
+                    <span className="text-cyan-400 ml-2">{metaContract.slice(0, 6)}...{metaContract.slice(-4)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -235,6 +263,27 @@ export function NFTMarketplace() {
                 />
               </div>
               
+              {/* Royalty Information */}
+              {salePrice && (
+                <div className="p-3 rounded-lg bg-black/20 border border-lime-500/10">
+                  <p className="text-sm text-[#f5eada]/60 mb-2">Transaction Breakdown</p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-[#f5eada]/80">Sale Price:</span>
+                      <span className="text-lime-400">{salePrice} ETH</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#f5eada]/80">Royalty (10%):</span>
+                      <span className="text-cyan-400">{(parseFloat(salePrice) * 0.1).toFixed(4)} ETH</span>
+                    </div>
+                    <div className="flex justify-between border-t border-lime-500/20 pt-1">
+                      <span className="text-[#f5eada]/80">Seller Receives:</span>
+                      <span className="text-orange-400">{(parseFloat(salePrice) * 0.9).toFixed(4)} ETH</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex gap-3">
                 <Button
                   onClick={() => setSelectedNFT(null)}
@@ -254,6 +303,17 @@ export function NFTMarketplace() {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Sale Transaction Verification Popup */}
+      {saleHash && (
+        <TransactionVerification
+          isOpen={showSaleVerification}
+          onClose={() => setShowSaleVerification(false)}
+          transactionHash={saleHash}
+          transactionType="sell"
+          contractAddress={contractAddress}
+        />
       )}
     </div>
   )
