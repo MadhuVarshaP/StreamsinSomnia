@@ -4,11 +4,11 @@ import type React from "react"
 import Link from "next/link"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import { AnimatedBackground } from "./animated-background"
 import { WalletConnect } from "./wallet/wallet-connect"
 import { NetworkSwitcher } from "./wallet/network-switcher"
 import { NetworkGuard } from "./wallet/network-guard"
 import { Menu } from "lucide-react"
+
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -20,9 +20,9 @@ const LINKS = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="relative min-h-dvh bg-gradient-to-br from-[#0b0b0d] via-[#1a0f1f] to-[#0f0a15] text-[#f5eada]">
-      <AnimatedBackground />
-      <header className="sticky top-0 z-30 border-b border-lime-500/20 bg-black/40 backdrop-blur-xl supports-[backdrop-filter]:bg-black/30">
+    <div className="relative min-h-dvh">
+      
+      <header className="sticky top-0 z-30 border-b border-lime-500/20 bg-transparent backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-4">
             <button className="md:hidden" aria-label="Toggle menu" onClick={() => setOpen((v) => !v)}>
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 md:grid-cols-[220px_1fr]">
         <aside
           className={cn(
-            "border-r border-lime-500/20 bg-black/20 p-6 backdrop-blur-xl supports-[backdrop-filter]:bg-black/10",
+            "border-r border-lime-500/20 bg-transparent p-6 backdrop-blur-sm",
             "fixed inset-y-0 left-0 z-20 w-64 -translate-x-full transform transition md:static md:translate-x-0",
             open && "translate-x-0",
           )}
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="min-h-[calc(100dvh-56px)] p-4 md:p-6">
+        <main className="relative z-10 min-h-[calc(100dvh-56px)] p-4 md:p-6">
           <NetworkGuard>
             {children}
           </NetworkGuard>

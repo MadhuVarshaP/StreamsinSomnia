@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { motion } from "framer-motion"
-import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon, CheckCircle } from "lucide-react"
+import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon, CheckCircle, DollarSign } from "lucide-react"
 import { useStreamingRoyaltyNFT, useRoyaltySplitter, useMintWithSplitter } from "@/hooks/use-contracts"
 import { CONTRACT_ADDRESSES } from "@/lib/contracts"
 import { toast } from "sonner"
@@ -32,6 +32,8 @@ export function MintNftForm() {
   ])
   const [image, setImage] = useState<File | null>(null)
   const [royaltyBps, setRoyaltyBps] = useState(1000) // 10% default
+  const [sellingPrice, setSellingPrice] = useState('')
+  const [autoListForSale, setAutoListForSale] = useState(false)
   const [showVerification, setShowVerification] = useState(false)
 
   const addSplit = () => setSplits((s) => [...s, { address: "", percent: 0 }])
@@ -76,6 +78,12 @@ export function MintNftForm() {
       return
     }
 
+    // Validate selling price if auto-listing
+    if (autoListForSale && (!sellingPrice || parseFloat(sellingPrice) <= 0)) {
+      toast.error("Please enter a valid selling price if you want to auto-list for sale")
+      return
+    }
+
     try {
       // Create token URI (in a real app, you'd upload to IPFS)
       const tokenURI = `https://api.somnia.streams/nft/${Date.now()}`
@@ -105,6 +113,8 @@ export function MintNftForm() {
       setDesc("")
       setSplits([{ address: "", percent: 70 }, { address: "", percent: 30 }])
       setImage(null)
+      setSellingPrice("")
+      setAutoListForSale(false)
       
     } catch (err) {
       console.error("Mint error:", err)
@@ -134,9 +144,9 @@ export function MintNftForm() {
             <CardTitle className="text-2xl font-bold text-[#f5eada]">Mint New NFT</CardTitle>
           </div>
           <p className="text-[#f5eada]/70">Create your NFT with flexible royalty splits and start earning from streams</p>
-        </CardHeader>
+      </CardHeader>
 
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
           <CardContent className="relative z-10 space-y-6">
             {/* NFT Basic Info */}
             <motion.div 
@@ -145,32 +155,32 @@ export function MintNftForm() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <div className="grid gap-3">
+          <div className="grid gap-3">
                 <Label htmlFor="nft-name" className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
                   NFT Name
                 </Label>
-                <Input
-                  id="nft-name"
-                  placeholder="e.g., Track #12"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+            <Input
+              id="nft-name"
+              placeholder="e.g., Track #12"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
                   className="bg-black/40 border-lime-500/20 text-[#f5eada] placeholder:text-[#f5eada]/40 focus:border-lime-500/40 focus:ring-lime-500/20"
-                  required
-                />
-              </div>
+              required
+            />
+          </div>
               
-              <div className="grid gap-3">
+          <div className="grid gap-3">
                 <Label htmlFor="nft-desc" className="text-sm font-medium text-[#f5eada]/90">Description</Label>
-                <Textarea
-                  id="nft-desc"
+            <Textarea
+              id="nft-desc"
                   placeholder="Describe your NFT and its unique value..."
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
                   className="bg-black/40 border-lime-500/20 text-[#f5eada] placeholder:text-[#f5eada]/40 focus:border-lime-500/40 focus:ring-lime-500/20"
-                  rows={4}
-                />
-              </div>
+              rows={4}
+            />
+          </div>
             </motion.div>
 
             {/* Image Upload */}
@@ -185,11 +195,11 @@ export function MintNftForm() {
                 Upload Image
               </Label>
               <div className="relative">
-                <Input
-                  id="nft-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImage(e.target.files?.[0] || null)}
+            <Input
+              id="nft-image"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImage(e.target.files?.[0] || null)}
                   className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
                 />
                 <Upload className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#f5eada]/40" />
@@ -236,6 +246,62 @@ export function MintNftForm() {
               </p>
             </motion.div>
 
+            {/* Selling Options */}
+            <motion.div 
+              className="space-y-4"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.26 }}
+            >
+              <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Selling Options
+              </Label>
+              
+              <div className="p-4 rounded-lg bg-black/20 border border-lime-500/10">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="auto-list"
+                      checked={autoListForSale}
+                      onChange={(e) => setAutoListForSale(e.target.checked)}
+                      className="w-4 h-4 text-lime-500 bg-black/40 border-lime-500/20 rounded focus:ring-lime-500/40"
+                    />
+                    <Label htmlFor="auto-list" className="text-sm text-[#f5eada]/80">
+                      Automatically list for sale after minting
+                    </Label>
+                  </div>
+                  
+                  {autoListForSale && (
+                    <motion.div 
+                      className="space-y-2"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Label htmlFor="selling-price" className="text-sm text-[#f5eada]/80">
+                        Initial Selling Price (ETH)
+                      </Label>
+                      <Input
+                        id="selling-price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={sellingPrice}
+                        onChange={(e) => setSellingPrice(e.target.value)}
+                        className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
+                        placeholder="0.1"
+                      />
+                      <p className="text-xs text-[#f5eada]/60">
+                        Note: This will list the NFT for sale immediately after minting. You can change the price later.
+                      </p>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
             {/* Contract Integration Info */}
             <motion.div 
               className="space-y-3"
@@ -275,7 +341,7 @@ export function MintNftForm() {
                     </div>
                   </div>
                 )}
-              </div>
+          </div>
             </motion.div>
 
             {/* Royalty Splits */}
@@ -285,24 +351,24 @@ export function MintNftForm() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Custom Royalty Splits
                 </Label>
-                <Button
-                  type="button"
-                  variant="outline"
+              <Button
+                type="button"
+                variant="outline"
                   className="border-lime-500/30 text-[#f5eada] bg-lime-500/10 hover:bg-lime-500/20 hover:border-lime-500/50 transition-all duration-300"
-                  onClick={addSplit}
-                >
+                onClick={addSplit}
+              >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add recipient
-                </Button>
-              </div>
+                Add recipient
+              </Button>
+            </div>
               
-              <div className="space-y-3">
-                {splits.map((s, i) => (
+            <div className="space-y-3">
+              {splits.map((s, i) => (
                   <motion.div 
                     key={i} 
                     className="space-y-2 p-4 rounded-lg bg-black/20 border border-lime-500/10"
@@ -313,7 +379,7 @@ export function MintNftForm() {
                     <div className="text-xs text-[#f5eada]/60 font-medium">Recipient {i + 1}</div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_120px_100px]">
                     <div className="relative">
-                      <Input
+                  <Input
                         placeholder="0x..."
                         value={s.address ? formatAddress(s.address, 4) : ""}
                         onChange={(e) => {
@@ -345,8 +411,8 @@ export function MintNftForm() {
                             ? 'border-red-500/50 focus:border-red-500/70 focus:ring-red-500/20'
                             : 'border-lime-500/20 focus:border-lime-500/40 focus:ring-lime-500/20'
                         }`}
-                        required
-                      />
+                    required
+                  />
                       {s.address && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs font-mono">
                           {isValidAddress(s.address) ? (
@@ -357,29 +423,29 @@ export function MintNftForm() {
                         </div>
                       )}
                     </div>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step="1"
-                      placeholder="%"
-                      value={s.percent}
-                      onChange={(e) => updateSplit(i, { percent: Number(e.target.value) })}
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="1"
+                    placeholder="%"
+                    value={s.percent}
+                    onChange={(e) => updateSplit(i, { percent: Number(e.target.value) })}
                       className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
                       className="text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-300"
-                      onClick={() => removeSplit(i)}
-                    >
+                    onClick={() => removeSplit(i)}
+                  >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
-                    </div>
+                  </Button>
+                </div>
                   </motion.div>
-                ))}
-              </div>
+              ))}
+            </div>
               
               <motion.div 
                 className="flex items-center justify-between p-3 rounded-lg bg-black/20 border border-lime-500/10"
@@ -393,10 +459,10 @@ export function MintNftForm() {
                     {totalPercent}%
                   </span>
                   {totalPercent === 100 && <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />}
-                </div>
+          </div>
               </motion.div>
             </motion.div>
-          </CardContent>
+        </CardContent>
 
           <CardFooter className="relative z-10 flex justify-end pt-6">
             <motion.div
@@ -405,7 +471,7 @@ export function MintNftForm() {
             >
               <Button 
                 type="submit"
-                disabled={isMintPending || isMintConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address))}
+                disabled={isMintPending || isMintConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address)) || (autoListForSale && (!sellingPrice || parseFloat(sellingPrice) <= 0))}
                 className="bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600 shadow-lg hover:shadow-lime-500/25 transition-all duration-300 border-0 px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isMintPending ? (
@@ -431,12 +497,12 @@ export function MintNftForm() {
                 )}
               </Button>
             </motion.div>
-          </CardFooter>
-        </form>
+        </CardFooter>
+      </form>
 
         {/* Hover effect overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
-      </Card>
+    </Card>
 
       {/* Transaction Verification Popup */}
       {transactionHash && (

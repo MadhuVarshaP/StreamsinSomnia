@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark antialiased">
       <body
-        className={`${poppins.variable} antialiased`}
+        className={`${poppins.variable} antialiased relative min-h-dvh bg-gradient-to-br from-black to-[#160f1d] text-[#f5eada]`}
       >
         <WagmiProviderWrapper>
           <Suspense fallback={null}>{children}</Suspense>

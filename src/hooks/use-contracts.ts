@@ -226,3 +226,37 @@ export function useRoyaltyInfo(tokenId: bigint, salePrice: string) {
     royaltyAmount: royaltyInfo?.[1] ? formatEther(royaltyInfo[1]) : '0',
   }
 }
+
+// Hook for fetching NFTs by owner (simplified version)
+export function useNFTsByOwner() {
+  const { data: totalSupply } = useReadContract({
+    address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+    abi: STREAMING_ROYALTY_NFT_ABI,
+    functionName: 'nextId',
+  })
+
+  // For now, return empty array - in a real implementation, you would use events or a different approach
+  // to avoid the rules of hooks violation
+  return {
+    ownedNFTs: [] as Array<{ tokenId: bigint; owner: string; tokenURI: string; royaltyInfo?: [string, bigint] }>,
+    totalSupply,
+    isLoading: false,
+  }
+}
+
+// Hook for fetching all NFTs (simplified version)
+export function useAllNFTs() {
+  const { data: totalSupply } = useReadContract({
+    address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+    abi: STREAMING_ROYALTY_NFT_ABI,
+    functionName: 'nextId',
+  })
+
+  // For now, return empty array - in a real implementation, you would use events or a different approach
+  // to avoid the rules of hooks violation
+  return {
+    allNFTs: [] as Array<{ tokenId: bigint; owner: string; tokenURI: string; royaltyInfo?: [string, bigint] }>,
+    totalSupply,
+    isLoading: false,
+  }
+}

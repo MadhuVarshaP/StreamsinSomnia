@@ -1,17 +1,19 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import { AppShell } from "../../components/app-shell"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
 import { StreamChart } from "../../components/charts/stream-chart"
-import { WalletBalances } from "../../components/cards/wallet-balances"
-import { PayoutsTable } from "../../components/tables/payouts-table"
-import { WalletInfo } from "../../components/wallet/wallet-info"
 import { NFTMarketplace } from "../../components/marketplace/nft-marketplace"
-import { RoyaltyTracker } from "../../components/royalty/royalty-tracker"
 import { motion } from "framer-motion"
-import { TrendingUp, Activity, Zap } from "lucide-react"
+import { TrendingUp, Activity, Zap, Music, Users, Crown } from "lucide-react"
+import { useAllNFTs } from "../../hooks/use-contracts"
+import { useAccount } from "wagmi"
 
 export default function DashboardPage() {
+  const { address } = useAccount()
+  const { allNFTs, totalSupply, isLoading } = useAllNFTs()
+
   return (
     <AppShell>
       <div className="space-y-8">
@@ -35,6 +37,9 @@ export default function DashboardPage() {
             </p>
           </div>
         </motion.div>
+
+           {/* NFT Marketplace */}
+           <NFTMarketplace />
 
         {/* Enhanced Stats Cards */}
         <motion.div 
@@ -184,18 +189,126 @@ export default function DashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
         </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <WalletInfo />
-          <WalletBalances />
-        </div>
-        
-        {/* Royalty Tracker */}
-        <RoyaltyTracker />
-        
-        {/* NFT Marketplace */}
-        <NFTMarketplace />
-        
-        <PayoutsTable />
+        {/* NFT Analytics - Compact */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <Card className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-lime-500/10 border border-lime-500/20">
+                  <Music className="h-5 w-5 text-lime-400" />
+                  <div>
+                    <p className="text-xs text-[#f5eada]/60">Total NFTs</p>
+                    <p className="text-lg font-bold text-lime-400">
+                      {isLoading ? "..." : totalSupply?.toString() || "0"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <Users className="h-5 w-5 text-cyan-400" />
+                  <div>
+                    <p className="text-xs text-[#f5eada]/60">Owners</p>
+                    <p className="text-lg font-bold text-cyan-400">
+                      {isLoading ? "..." : new Set(allNFTs.map(nft => nft.owner)).size}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <Crown className="h-5 w-5 text-orange-400" />
+                  <div>
+                    <p className="text-xs text-[#f5eada]/60">Avg. Royalty</p>
+                    <p className="text-lg font-bold text-orange-400">
+                      {isLoading ? "..." : allNFTs.length > 0 
+                        ? (allNFTs.reduce((sum, nft) => {
+                            const royalty = nft.royaltyInfo ? Number(nft.royaltyInfo[1]) / 100 : 0
+                            return sum + royalty
+                          }, 0) / allNFTs.length).toFixed(1)
+                        : "0"
+                      }%
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                  <TrendingUp className="h-5 w-5 text-purple-400" />
+                  <div>
+                    <p className="text-xs text-[#f5eada]/60">Active</p>
+                    <p className="text-lg font-bold text-purple-400">
+                      {isLoading ? "..." : allNFTs.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Minted NFTs - Top Section */}
+        {/* <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <Card className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-xl text-[#f5eada]">
+                <Music className="h-5 w-5 text-lime-400" />
+                Minted NFTs
+              </CardTitle>
+              <p className="text-[#f5eada]/70 text-sm">Latest NFTs on Somnia testnet</p>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Card key={i} className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
+                      <CardContent className="p-4">
+                        <div className="animate-pulse">
+                          <div className="w-full h-32 bg-lime-500/20 rounded-lg mb-3" />
+                          <div className="h-3 bg-lime-500/20 rounded mb-2" />
+                          <div className="h-3 bg-lime-500/20 rounded w-2/3" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : allNFTs.length === 0 ? (
+                <div className="text-center py-8">
+                  <Music className="h-8 w-8 text-lime-400 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold mb-2">No NFTs Minted Yet</h3>
+                  <p className="text-[#f5eada]/60 text-sm">Be the first to mint an NFT on the Somnia testnet!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {allNFTs.slice(0, 8).map((nft, index) => (
+                    <motion.div
+                      key={nft.tokenId.toString()}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                    >
+                      <NFTDisplay
+                        nft={nft}
+                        showOwner={true}
+                        isOwned={nft.owner === address}
+                        onViewDetails={(nft) => {
+                          // Handle view details
+                          console.log('View details for NFT:', nft)
+                        }}
+                        onSell={nft.owner === address ? (nft) => {
+                          // Handle sell NFT
+                          console.log('Sell NFT:', nft)
+                        } : undefined}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div> */}
         </motion.div>
       </div>
     </AppShell>
