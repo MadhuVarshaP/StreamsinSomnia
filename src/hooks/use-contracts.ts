@@ -7,7 +7,7 @@ import { somniaTestnet } from '@/lib/wagmi'
 import { 
   CONTRACT_ADDRESSES, 
   STREAMING_ROYALTY_NFT_ABI, 
-  ROYALTY_SPLITTER_FACTORY_ABI,
+  ROYALTY_SPLITTER_FACTORY_ABI, 
   ROYALTY_SPLITTER_ABI,
   ROYALTY_ROUTER_ABI
 } from '@/lib/contracts'
@@ -179,7 +179,7 @@ export function useMintWithSplitter() {
         console.log('Calling writeContract for splitter deployment...')
         console.log('Factory address:', CONTRACT_ADDRESSES.ROYALTY_SPLITTER_FACTORY)
         console.log('Formatted shares:', formattedShares)
-        console.log('ABI function names:', ROYALTY_SPLITTER_FACTORY_ABI.map(item => item.name || item.type))
+        console.log('ABI function names:', ROYALTY_SPLITTER_FACTORY_ABI.map(item => 'name' in item ? item.name : 'unknown'))
         
         // Validate contract address format
         if (!CONTRACT_ADDRESSES.ROYALTY_SPLITTER_FACTORY || !CONTRACT_ADDRESSES.ROYALTY_SPLITTER_FACTORY.startsWith('0x')) {
@@ -340,7 +340,10 @@ export function useMintWithSplitter() {
           }
           if (
             decoded.eventName === 'Transfer' &&
-            (decoded.args as any).from?.toLowerCase?.() === '0x0000000000000000000000000000000000000000'
+            decoded.args &&
+            'from' in decoded.args &&
+            typeof decoded.args.from === 'string' &&
+            decoded.args.from.toLowerCase() === '0x0000000000000000000000000000000000000000'
           ) {
             tokenId = decoded.args.tokenId as bigint
             break
@@ -484,7 +487,7 @@ export function useRoyaltyRouterInfo() {
 
 // Hook for Royalty Router (Marketplace) interactions
 export function useRoyaltyRouter() {
-  const { writeContract, data: hash, isPending, error } = useWriteContract()
+  const { writeContract, writeContractAsync, data: hash, isPending, error } = useWriteContract()
 
   // List NFT for sale
   const listNFT = async (tokenId: bigint, price: string) => {
@@ -503,9 +506,9 @@ export function useRoyaltyRouter() {
   }
 
   // Buy NFT function
-  const buyNFT = async (tokenId: bigint, price: string) => {
+  const buyNFT = async (tokenId: bigint, price: string): Promise<string> => {
     try {
-      const txHash = await writeContract({
+      const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
         abi: ROYALTY_ROUTER_ABI,
         functionName: 'buyNFT',

@@ -71,7 +71,7 @@ export function NFTMarketplace() {
     try {
       const txHash = await buyNFT(tokenId, price)
       // do not show immediately; wait for wallet to broadcast and hash available
-      if (txHash) setLocalBuyHash(txHash as `0x${string}`)
+      setLocalBuyHash(txHash as `0x${string}`)
       setSelectedNFT(null)
     } catch (error) {
       console.error('Buy error:', error)
@@ -174,7 +174,7 @@ export function NFTMarketplace() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-4 md:px-8"
       >
         {isLoadingNFTs ? (
           Array.from({ length: 6 }).map((_, i) => (

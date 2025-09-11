@@ -154,7 +154,7 @@ class PinataService {
 const pinataService = new PinataService({
   pinataApiKey: process.env.NEXT_PUBLIC_PINATA_API_KEY || '',
   pinataSecretApiKey: process.env.NEXT_PUBLIC_PINATA_SECRET_KEY || '',
-  pinataGroupId: process.env.NEXT_PUBLIC_PINATA_GROUP_ID || 'b53401cb-0787-429b-86f5-652f44ef1ffa',
+  pinataGroupId: process.env.NEXT_PUBLIC_PINATA_GROUP_ID || '',
 })
 
 export default pinataService

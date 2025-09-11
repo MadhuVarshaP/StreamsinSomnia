@@ -57,18 +57,6 @@ const getIconColor = (label: string) => {
   }
 }
 
-const getStatusColor = (label: string) => {
-  switch (label.toLowerCase()) {
-    case "creator":
-      return "bg-lime-400"
-    case "dao":
-      return "bg-cyan-400"
-    case "collaborator":
-      return "bg-magenta-400"
-    default:
-      return "bg-green-400"
-  }
-}
 
 export function WalletBalances() {
   return (

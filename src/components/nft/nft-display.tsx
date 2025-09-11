@@ -14,7 +14,7 @@ import {
   Eye,
   Heart
 } from "lucide-react"
-import { formatAddress } from "@/lib/utils"
+import { formatAddress, convertIPFSUrl } from "@/lib/utils"
 import Image from "next/image"
 import { toast } from "sonner"
 import { NFTData } from "@/types/nft"
@@ -76,7 +76,7 @@ export function NFTDisplay({
           <div className={`absolute inset-0 bg-gradient-to-br ${getGradient(nft.tokenId)}`}>
             {!imageError ? (
               <Image
-                src={nft.tokenURI}
+                src={convertIPFSUrl(nft.tokenURI)}
                 alt={`Somnia NFT #${nft.tokenId.toString()}`}
                 fill
                 className="object-cover transition-transform duration-300 group-hover:scale-105"

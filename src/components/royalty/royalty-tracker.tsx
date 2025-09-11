@@ -7,8 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
 import { TrendingUp, DollarSign, Users, Activity, Zap } from 'lucide-react'
 import { useStreamingRoyaltyNFT, useRoyaltySplitter } from '@/hooks/use-contracts'
-import { CONTRACT_ADDRESSES } from '@/lib/contracts'
-import { formatEther } from 'viem'
 
 interface RoyaltyEvent {
   id: string
@@ -22,7 +20,7 @@ interface RoyaltyEvent {
 
 export function RoyaltyTracker() {
   const { address, isConnected } = useAccount()
-  const { balance, totalSupply } = useStreamingRoyaltyNFT()
+  const { balance } = useStreamingRoyaltyNFT()
   const { shares } = useRoyaltySplitter()
   
   const [royaltyEvents, setRoyaltyEvents] = useState<RoyaltyEvent[]>([])
