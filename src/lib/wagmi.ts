@@ -41,7 +41,10 @@ export const config = createConfig({
     }),
   ],
   transports: {
-    [somniaTestnet.id]: http(),
+    [somniaTestnet.id]: http('https://dream-rpc.somnia.network', {
+      timeout: 30000,
+      retryCount: 3,
+    }),
     [mainnet.id]: http(),
     [sepolia.id]: http(),
     [polygon.id]: http(),

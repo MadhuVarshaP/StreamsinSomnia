@@ -1,8 +1,8 @@
 // Contract addresses on Somnia Testnet (Chain ID: 50312)
 export const CONTRACT_ADDRESSES = {
-  STREAMING_ROYALTY_NFT: "0x9E8833952841Cdb5c238B239a3633b9B33106B2E",
-  ROYALTY_SPLITTER: "0xa5820d0DC4F9B79c7336A0661e0F96aBeF8c7bd8", 
-  ROYALTY_ROUTER: "0x2B6334F2d9e27e61aE6985B43E7b7C089E91ef85",
+  STREAMING_ROYALTY_NFT: "0xc0b79C48bD4Db891F073499FBd51fC2FaAbD5D03", 
+  ROYALTY_ROUTER: "0x5B2089F23e6FEFf773f9b446548b7e49282990E0",
+  ROYALTY_SPLITTER_FACTORY: "0xe893b73f1339C4F40747F660FC1188aA26976e5c",
 } as const
 
 // Contract ABIs
@@ -287,6 +287,37 @@ export const STREAMING_ROYALTY_NFT_ABI = [
 			}
 		],
 		"name": "MetadataUpdate",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "splitter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint96",
+				"name": "royaltyBps",
+				"type": "uint96"
+			}
+		],
+		"name": "NFTMinted",
 		"type": "event"
 	},
 	{
@@ -646,6 +677,25 @@ export const STREAMING_ROYALTY_NFT_ABI = [
 		"inputs": [
 			{
 				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "tokenSplitters",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
 				"name": "tokenId",
 				"type": "uint256"
 			}
@@ -699,6 +749,59 @@ export const STREAMING_ROYALTY_NFT_ABI = [
 	}
 ] as const
 
+export const ROYALTY_SPLITTER_FACTORY_ABI = [
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "splitter",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "creator",
+				"type": "address"
+			}
+		],
+		"name": "SplitterCreated",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "account",
+						"type": "address"
+					},
+					{
+						"internalType": "uint96",
+						"name": "bps",
+						"type": "uint96"
+					}
+				],
+				"internalType": "struct RoyaltySplitter.Share[]",
+				"name": "shares",
+				"type": "tuple[]"
+			}
+		],
+		"name": "createSplitter",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "splitter",
+				"type": "address"
+			}
+		],
+		"stateMutability": "payable",
+		"type": "function"
+	}
+] as const
+
 export const ROYALTY_SPLITTER_ABI = [
 	{
 		"inputs": [
@@ -722,6 +825,30 @@ export const ROYALTY_SPLITTER_ABI = [
 		],
 		"stateMutability": "payable",
 		"type": "constructor"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "shares",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			},
+			{
+				"internalType": "uint96",
+				"name": "bps",
+				"type": "uint96"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [],
@@ -762,30 +889,6 @@ export const ROYALTY_SPLITTER_ABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "shares",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			},
-			{
-				"internalType": "uint96",
-				"name": "bps",
-				"type": "uint96"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"stateMutability": "payable",
 		"type": "receive"
 	}
@@ -814,6 +917,31 @@ export const ROYALTY_ROUTER_ABI = [
 				"type": "uint256"
 			},
 			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "seller",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			}
+		],
+		"name": "NFTListed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
 				"indexed": false,
 				"internalType": "uint256",
 				"name": "salePrice",
@@ -828,6 +956,101 @@ export const ROYALTY_ROUTER_ABI = [
 		],
 		"name": "SaleSettled",
 		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "buyNFT",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getActiveListings",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "tokenIds",
+				"type": "uint256[]"
+			},
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "seller",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "price",
+						"type": "uint256"
+					},
+					{
+						"internalType": "bool",
+						"name": "active",
+						"type": "bool"
+					}
+				],
+				"internalType": "struct RoyaltyRouter.Listing[]",
+				"name": "_listings",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			}
+		],
+		"name": "listNFT",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "listings",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "seller",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "active",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [],
@@ -853,29 +1076,6 @@ export const ROYALTY_ROUTER_ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "tokenId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "seller",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "buyer",
-				"type": "address"
-			}
-		],
-		"name": "sell",
-		"outputs": [],
-		"stateMutability": "payable",
 		"type": "function"
 	}
 ] as const

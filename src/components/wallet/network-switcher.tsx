@@ -21,16 +21,32 @@ export function NetworkSwitcher() {
   const chainId = useChainId()
   const { switchChain, isPending } = useSwitchChain()
   const [showDialog, setShowDialog] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Fix hydration error by ensuring component is mounted
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Auto-switch to Somnia testnet when wallet connects
+  useEffect(() => {
+    if (isConnected && chainId !== 50312 && !isPending) {
+      switchChain({ chainId: 50312 })
+    }
+  }, [isConnected, chainId, isPending, switchChain])
 
   const currentChain = CHAIN_NAMES[chainId]
   const isCorrectNetwork = chainId === 50312
 
-  // Auto-switch to Somnia testnet when wallet connects
-  useEffect(() => {
-    if (isConnected && !isCorrectNetwork && !isPending) {
-      switchChain({ chainId: 50312 })
-    }
-  }, [isConnected, isCorrectNetwork, isPending, switchChain])
+  // Don't render until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-8 w-24 bg-lime-500/10 border border-lime-500/20 rounded animate-pulse" />
+        <div className="h-6 w-20 bg-lime-500/10 border border-lime-500/20 rounded animate-pulse" />
+      </div>
+    )
+  }
 
   if (!isConnected) {
     return null

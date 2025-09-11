@@ -10,18 +10,17 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { motion } from "framer-motion"
 import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon, CheckCircle, DollarSign } from "lucide-react"
-import { useStreamingRoyaltyNFT, useRoyaltySplitter, useMintWithSplitter } from "@/hooks/use-contracts"
-import { CONTRACT_ADDRESSES } from "@/lib/contracts"
+import { useStreamingRoyaltyNFT, useMintWithSplitter } from "@/hooks/use-contracts"
 import { toast } from "sonner"
 import { formatAddress } from "@/lib/utils"
 import { TransactionVerification } from "@/components/ui/transaction-verification"
+import pinataService from "@/lib/pinata"
 
 type Split = { address: string; percent: number }
 
 export function MintNftForm() {
   const { address, isConnected } = useAccount()
   const { } = useStreamingRoyaltyNFT()
-  const { shares: splitterShares } = useRoyaltySplitter()
   const { mintWithCustomSplitter, isPending: isMintPending, isConfirming: isMintConfirming, isConfirmed: isMintConfirmed, hash: transactionHash, contractAddress } = useMintWithSplitter()
   
   const [name, setName] = useState("")
@@ -32,9 +31,9 @@ export function MintNftForm() {
   ])
   const [image, setImage] = useState<File | null>(null)
   const [royaltyBps, setRoyaltyBps] = useState(1000) // 10% default
-  const [sellingPrice, setSellingPrice] = useState('')
-  const [autoListForSale, setAutoListForSale] = useState(false)
+  const [listingPrice, setListingPrice] = useState("0.1") // Default listing price
   const [showVerification, setShowVerification] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   const addSplit = () => setSplits((s) => [...s, { address: "", percent: 0 }])
   const removeSplit = (i: number) => setSplits((s) => s.filter((_, idx) => idx !== i))
@@ -48,7 +47,12 @@ export function MintNftForm() {
 
   // Show verification popup when transaction is confirmed
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
     if (isMintConfirmed && transactionHash) {
+      // Only show popup after the entire flow (splitter + mint + approve + list) has confirmed
       setShowVerification(true)
     }
   }, [isMintConfirmed, transactionHash])
@@ -78,15 +82,50 @@ export function MintNftForm() {
       return
     }
 
-    // Validate selling price if auto-listing
-    if (autoListForSale && (!sellingPrice || parseFloat(sellingPrice) <= 0)) {
-      toast.error("Please enter a valid selling price if you want to auto-list for sale")
-      return
-    }
 
     try {
-      // Create token URI (in a real app, you'd upload to IPFS)
-      const tokenURI = `https://api.somnia.streams/nft/${Date.now()}`
+      toast.loading("Uploading NFT metadata to IPFS...", { id: "mint" })
+      
+      // Upload image to IPFS if provided
+      let imageUrl = ""
+      if (image) {
+        try {
+          imageUrl = await pinataService.uploadFile(image)
+          console.log("Image uploaded to IPFS:", imageUrl)
+        } catch (err) {
+          console.error("Error uploading image:", err)
+          throw new Error("Failed to upload image to IPFS")
+        }
+      }
+      
+      // Create NFT metadata
+      const metadata = {
+        name: name,
+        description: desc,
+        image: imageUrl || "https://via.placeholder.com/400x400/00ff88/000000?text=No+Image",
+        attributes: [
+          {
+            trait_type: "Royalty Rate",
+            value: `${royaltyBps / 100}%`
+          },
+          {
+            trait_type: "Split Recipients",
+            value: splits.filter(s => isValidAddress(s.address)).length
+          }
+        ],
+        external_url: "https://streamsinsomnia.com",
+        animation_url: undefined
+      }
+      
+      // Upload metadata to IPFS
+      let tokenURI: string
+      try {
+        tokenURI = await pinataService.uploadMetadata(metadata)
+        console.log("Metadata uploaded to IPFS:", tokenURI)
+      } catch (err) {
+        console.error("Error uploading metadata:", err)
+        throw new Error("Failed to upload metadata to IPFS")
+      }
       
       // Convert splits to the format expected by the contract
       const formattedSplits = splits
@@ -96,33 +135,67 @@ export function MintNftForm() {
           bps: split.percent * 100 // Convert percentage to basis points
         }))
       
-      toast.loading("Minting NFT with custom royalty splits...", { id: "mint" })
+      console.log("Starting mint process with:", {
+        to: address,
+        tokenURI,
+        formattedSplits,
+        royaltyBps: BigInt(royaltyBps),
+        listingPrice
+      })
+      
+      toast.loading("Deploying custom royalty splitter...", { id: "mint" })
       
       // Use the new mint flow with custom splitter
       await mintWithCustomSplitter(
         address as `0x${string}`, 
         tokenURI, 
         formattedSplits, 
-        BigInt(royaltyBps)
+        BigInt(royaltyBps),
+        listingPrice
       )
       
-      toast.success("NFT minted successfully with custom royalty splits!", { id: "mint" })
+      toast.success("NFT minted successfully and listed for sale!", { id: "mint" })
       
       // Reset form
       setName("")
       setDesc("")
       setSplits([{ address: "", percent: 70 }, { address: "", percent: 30 }])
       setImage(null)
-      setSellingPrice("")
-      setAutoListForSale(false)
+      setListingPrice("0.1")
       
     } catch (err) {
       console.error("Mint error:", err)
-      toast.error("Failed to mint NFT. Please try again.", { id: "mint" })
+      
+      // Provide more specific error messages based on the error
+      let errorMessage = "Failed to mint NFT. Please try again."
+      
+      if (err instanceof Error) {
+        if (err.message.includes("IPFS")) {
+          errorMessage = "Failed to upload to IPFS. Please check your internet connection and try again."
+        } else if (err.message.includes("splitter")) {
+          errorMessage = "Failed to deploy royalty splitter. Please check your wallet and try again."
+        } else if (err.message.includes("mint")) {
+          errorMessage = "Failed to mint NFT. Please ensure you have enough funds and try again."
+        } else if (err.message.includes("approve")) {
+          errorMessage = "Failed to approve NFT for listing. Please try again."
+        } else if (err.message.includes("list")) {
+          errorMessage = "NFT minted but failed to list for sale. You can list it manually later."
+        } else if (err.message.includes("User rejected")) {
+          errorMessage = "Transaction was cancelled by user."
+        } else if (err.message.includes("insufficient funds")) {
+          errorMessage = "Insufficient funds to complete the transaction."
+        } else {
+          errorMessage = `Error: ${err.message}`
+        }
+      }
+      
+      toast.error(errorMessage, { id: "mint" })
     }
   }
 
   const totalPercent = splits.reduce((a, b) => a + (Number(b.percent) || 0), 0)
+
+  if (!mounted) return null
 
   return (
     <motion.div
@@ -246,103 +319,35 @@ export function MintNftForm() {
               </p>
             </motion.div>
 
-            {/* Selling Options */}
+            {/* Listing Price */}
             <motion.div 
-              className="space-y-4"
+              className="space-y-2"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.26 }}
             >
-              <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
+              <Label htmlFor="listing-price" className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
-                Selling Options
+                Initial Listing Price
               </Label>
-              
-              <div className="p-4 rounded-lg bg-black/20 border border-lime-500/10">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="auto-list"
-                      checked={autoListForSale}
-                      onChange={(e) => setAutoListForSale(e.target.checked)}
-                      className="w-4 h-4 text-lime-500 bg-black/40 border-lime-500/20 rounded focus:ring-lime-500/40"
-                    />
-                    <Label htmlFor="auto-list" className="text-sm text-[#f5eada]/80">
-                      Automatically list for sale after minting
-                    </Label>
-                  </div>
-                  
-                  {autoListForSale && (
-                    <motion.div 
-                      className="space-y-2"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Label htmlFor="selling-price" className="text-sm text-[#f5eada]/80">
-                        Initial Selling Price (ETH)
-                      </Label>
-                      <Input
-                        id="selling-price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={sellingPrice}
-                        onChange={(e) => setSellingPrice(e.target.value)}
-                        className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
-                        placeholder="0.1"
-                      />
-                      <p className="text-xs text-[#f5eada]/60">
-                        Note: This will list the NFT for sale immediately after minting. You can change the price later.
-                      </p>
-                    </motion.div>
-                  )}
-                </div>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="listing-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
+                  className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
+                  placeholder="0.1"
+                />
+                <span className="text-sm text-[#f5eada]/60">ETH</span>
               </div>
+              <p className="text-xs text-[#f5eada]/60">
+                NFT will be automatically listed for sale at this price
+              </p>
             </motion.div>
-
-            {/* Contract Integration Info */}
-            <motion.div 
-              className="space-y-3"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.28 }}
-            >
-              <Label className="text-sm font-medium text-[#f5eada]/90 flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Contract Integration
-              </Label>
-              <div className="p-3 rounded-lg bg-black/20 border border-lime-500/10">
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[#f5eada]/60">NFT Contract:</span>
-                    <span className="text-lime-400">{formatAddress(CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT, 6)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#f5eada]/60">Splitter Contract:</span>
-                    <span className="text-cyan-400">{formatAddress(CONTRACT_ADDRESSES.ROYALTY_SPLITTER, 6)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#f5eada]/60">Router Contract:</span>
-                    <span className="text-orange-400">{formatAddress(CONTRACT_ADDRESSES.ROYALTY_ROUTER, 6)}</span>
-                  </div>
-                </div>
-                {splitterShares && splitterShares.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-lime-500/20">
-                    <p className="text-xs text-[#f5eada]/60 mb-2">Current Splitter Configuration:</p>
-                    <div className="space-y-1">
-                      {splitterShares.map((share, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="text-[#f5eada]/80">{formatAddress(share.account, 4)}</span>
-                          <span className="text-lime-400">{(Number(share.bps) / 100).toFixed(1)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-          </div>
-            </motion.div>
+            
 
             {/* Royalty Splits */}
             <motion.div 
@@ -471,7 +476,7 @@ export function MintNftForm() {
             >
               <Button 
                 type="submit"
-                disabled={isMintPending || isMintConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address)) || (autoListForSale && (!sellingPrice || parseFloat(sellingPrice) <= 0))}
+                disabled={isMintPending || isMintConfirming || !isConnected || totalPercent !== 100 || splits.some(s => !isValidAddress(s.address))}
                 className="bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600 shadow-lg hover:shadow-lime-500/25 transition-all duration-300 border-0 px-8 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isMintPending ? (

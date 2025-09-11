@@ -24,6 +24,7 @@ export function TransactionVerification({
   transactionType,
   contractAddress
 }: TransactionVerificationProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [copied, setCopied] = useState(false)
 
   const explorerUrl = `https://shannon-explorer.somnia.network/tx/${transactionHash}`

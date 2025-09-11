@@ -7,12 +7,14 @@ import { StreamChart } from "../../components/charts/stream-chart"
 import { NFTMarketplace } from "../../components/marketplace/nft-marketplace"
 import { motion } from "framer-motion"
 import { TrendingUp, Activity, Zap, Music, Users, Crown } from "lucide-react"
-import { useAllNFTs } from "../../hooks/use-contracts"
+import { useAllNFTs, useActiveListings, useStreamingRoyaltyNFT } from "../../hooks/use-contracts"
 import { useAccount } from "wagmi"
 
 export default function DashboardPage() {
   const { address } = useAccount()
   const { allNFTs, totalSupply, isLoading } = useAllNFTs()
+  const { tokenIds, listings } = useActiveListings()
+  const { totalSupply: nftTotalSupply } = useStreamingRoyaltyNFT()
 
   return (
     <AppShell>
@@ -40,6 +42,78 @@ export default function DashboardPage() {
 
            {/* NFT Marketplace */}
            <NFTMarketplace />
+
+        {/* Royalty Distribution Overview */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <Card className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-xl text-[#f5eada]">
+                <Crown className="h-5 w-5 text-lime-400" />
+                Royalty Distribution Overview
+              </CardTitle>
+              <p className="text-[#f5eada]/70 text-sm">Track royalty payments and distribution across all NFTs</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Total Royalties Collected */}
+                <div className="p-4 rounded-lg bg-lime-500/10 border border-lime-500/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-lime-500/20">
+                      <TrendingUp className="h-5 w-5 text-lime-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#f5eada]/60">Total Royalties</p>
+                      <p className="text-2xl font-bold text-lime-400">0.0000 ETH</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#f5eada]/50">From all NFT sales</p>
+                </div>
+
+                {/* Active Royalty Recipients */}
+                <div className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-cyan-500/20">
+                      <Users className="h-5 w-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#f5eada]/60">Recipients</p>
+                      <p className="text-2xl font-bold text-cyan-400">0</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#f5eada]/50">Unique royalty recipients</p>
+                </div>
+
+                {/* Average Royalty Rate */}
+                <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 rounded-lg bg-orange-500/20">
+                      <Activity className="h-5 w-5 text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#f5eada]/60">Avg. Rate</p>
+                      <p className="text-2xl font-bold text-orange-400">10.0%</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#f5eada]/50">Average royalty percentage</p>
+                </div>
+              </div>
+
+              {/* Royalty Distribution Chart Placeholder */}
+              <div className="mt-6 p-4 rounded-lg bg-black/20 border border-lime-500/10">
+                <h4 className="text-lg font-semibold text-[#f5eada] mb-3">Recent Royalty Distributions</h4>
+                <div className="text-center py-8">
+                  <Activity className="h-8 w-8 text-lime-400 mx-auto mb-3" />
+                  <p className="text-[#f5eada]/60">No royalty distributions yet</p>
+                  <p className="text-sm text-[#f5eada]/40">Royalty distributions will appear here after NFT sales</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Enhanced Stats Cards */}
         <motion.div 
@@ -189,126 +263,7 @@ export default function DashboardPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
         </Card>
 
-        {/* NFT Analytics - Compact */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          <Card className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-lime-500/10 border border-lime-500/20">
-                  <Music className="h-5 w-5 text-lime-400" />
-                  <div>
-                    <p className="text-xs text-[#f5eada]/60">Total NFTs</p>
-                    <p className="text-lg font-bold text-lime-400">
-                      {isLoading ? "..." : totalSupply?.toString() || "0"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Users className="h-5 w-5 text-cyan-400" />
-                  <div>
-                    <p className="text-xs text-[#f5eada]/60">Owners</p>
-                    <p className="text-lg font-bold text-cyan-400">
-                      {isLoading ? "..." : new Set(allNFTs.map(nft => nft.owner)).size}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                  <Crown className="h-5 w-5 text-orange-400" />
-                  <div>
-                    <p className="text-xs text-[#f5eada]/60">Avg. Royalty</p>
-                    <p className="text-lg font-bold text-orange-400">
-                      {isLoading ? "..." : allNFTs.length > 0 
-                        ? (allNFTs.reduce((sum, nft) => {
-                            const royalty = nft.royaltyInfo ? Number(nft.royaltyInfo[1]) / 100 : 0
-                            return sum + royalty
-                          }, 0) / allNFTs.length).toFixed(1)
-                        : "0"
-                      }%
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                  <TrendingUp className="h-5 w-5 text-purple-400" />
-                  <div>
-                    <p className="text-xs text-[#f5eada]/60">Active</p>
-                    <p className="text-lg font-bold text-purple-400">
-                      {isLoading ? "..." : allNFTs.length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Minted NFTs - Top Section */}
-        {/* <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          <Card className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-xl text-[#f5eada]">
-                <Music className="h-5 w-5 text-lime-400" />
-                Minted NFTs
-              </CardTitle>
-              <p className="text-[#f5eada]/70 text-sm">Latest NFTs on Somnia testnet</p>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Card key={i} className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
-                      <CardContent className="p-4">
-                        <div className="animate-pulse">
-                          <div className="w-full h-32 bg-lime-500/20 rounded-lg mb-3" />
-                          <div className="h-3 bg-lime-500/20 rounded mb-2" />
-                          <div className="h-3 bg-lime-500/20 rounded w-2/3" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : allNFTs.length === 0 ? (
-                <div className="text-center py-8">
-                  <Music className="h-8 w-8 text-lime-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold mb-2">No NFTs Minted Yet</h3>
-                  <p className="text-[#f5eada]/60 text-sm">Be the first to mint an NFT on the Somnia testnet!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {allNFTs.slice(0, 8).map((nft, index) => (
-                    <motion.div
-                      key={nft.tokenId.toString()}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                    >
-                      <NFTDisplay
-                        nft={nft}
-                        showOwner={true}
-                        isOwned={nft.owner === address}
-                        onViewDetails={(nft) => {
-                          // Handle view details
-                          console.log('View details for NFT:', nft)
-                        }}
-                        onSell={nft.owner === address ? (nft) => {
-                          // Handle sell NFT
-                          console.log('Sell NFT:', nft)
-                        } : undefined}
-                      />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div> */}
+     
         </motion.div>
       </div>
     </AppShell>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -13,6 +13,11 @@ export function WalletConnect() {
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const [copied, setCopied] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const copyAddress = async () => {
     if (address) {
@@ -20,6 +25,15 @@ export function WalletConnect() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="h-6 w-20 bg-lime-500/10 border border-lime-500/20 rounded animate-pulse" />
+        <div className="h-8 w-24 bg-lime-500/10 border border-lime-500/20 rounded animate-pulse" />
+      </div>
+    )
   }
 
   if (isConnected && address) {

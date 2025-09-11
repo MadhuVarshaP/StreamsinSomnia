@@ -8,32 +8,31 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @title StreamingRoyaltyNFT - ERC721 with per-token royalty via splitter
 contract StreamingRoyaltyNFT is ERC721URIStorage, ERC2981, Ownable {
     uint256 public nextId;
+    mapping(uint256 => address) public tokenSplitters;
+
+    event NFTMinted(uint256 indexed tokenId, address indexed owner, address splitter, uint96 royaltyBps);
 
     constructor(address initialOwner) 
         ERC721("Somnia Streaming NFT", "SSN") 
         Ownable(initialOwner) 
     {}
 
-    /// @notice Mint NFT with royalty info pointing to a RoyaltySplitter
     function mint(
         address to,
         string memory tokenURI_,
         address splitter,
-        uint96 royaltyBps // e.g. 1000 = 10%
+        uint96 royaltyBps
     ) external onlyOwner returns (uint256 tokenId) {
         tokenId = ++nextId;
         _mint(to, tokenId);
         _setTokenURI(tokenId, tokenURI_);
         _setTokenRoyalty(tokenId, splitter, royaltyBps);
+        tokenSplitters[tokenId] = splitter;
+
+        emit NFTMinted(tokenId, to, splitter, royaltyBps);
     }
 
-    /// @inheritdoc ERC165
-    function supportsInterface(bytes4 iid)
-        public
-        view
-        override(ERC721URIStorage, ERC2981) 
-        returns (bool)
-    {
+    function supportsInterface(bytes4 iid) public view override(ERC721URIStorage, ERC2981) returns (bool) {
         return super.supportsInterface(iid);
     }
 }
