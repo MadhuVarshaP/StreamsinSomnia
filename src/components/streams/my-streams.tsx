@@ -17,16 +17,13 @@ import {
   Crown
 } from "lucide-react"
 import { useNFTsByOwner } from "@/hooks/use-contracts"
-import { NFTDisplay } from "@/components/nft/nft-display"
-import { NFTData } from "@/types/nft"
+import { NFTCard } from "../marketplace/nft-card"
 
 interface MyStreamsProps {
   onMintNew?: () => void
-  onSellNFT?: (nft: NFTData) => void
-  onViewDetails?: (nft: NFTData) => void
 }
 
-export function MyStreams({ onMintNew, onSellNFT, onViewDetails }: MyStreamsProps) {
+export function MyStreams({ onMintNew }: MyStreamsProps) {
   const { address, isConnected } = useAccount()
   const { ownedNFTs, isLoading } = useNFTsByOwner(address)
   const [searchTerm, setSearchTerm] = useState("")
@@ -242,8 +239,8 @@ export function MyStreams({ onMintNew, onSellNFT, onViewDetails }: MyStreamsProp
         ) : (
           <div className={`grid gap-6 ${
             viewMode === "grid" 
-              ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" 
-              : "grid-cols-1"
+              ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3  px-4 md:px-8" 
+              : "grid-cols-1 px-4 md:px-8"
           }`}>
             {filteredNFTs.map((nft, index) => (
               <motion.div
@@ -252,13 +249,14 @@ export function MyStreams({ onMintNew, onSellNFT, onViewDetails }: MyStreamsProp
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <NFTDisplay
-                  nft={nft}
-                  showOwner={false}
-                  isOwned={true}
-                  onViewDetails={onViewDetails}
-                  onSell={onSellNFT}
+                <NFTCard
+                  tokenId={nft.tokenId}
+                  owner={nft.owner}
+                  tokenURI={nft.tokenURI}
+                  isListed={false}
+                  onPurchase={undefined}
                 />
+                  
               </motion.div>
             ))}
           </div>

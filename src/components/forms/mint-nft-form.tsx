@@ -341,7 +341,7 @@ export function MintNftForm() {
                   className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
                   placeholder="0.1"
                 />
-                <span className="text-sm text-[#f5eada]/60">ETH</span>
+                <span className="text-sm text-[#f5eada]/60">STT</span>
               </div>
               <p className="text-xs text-[#f5eada]/60">
                 NFT will be automatically listed for sale at this price

@@ -80,7 +80,7 @@ export async function GET() {
             address: CONTRACT_ADDRESS,
             abi: NFT_ABI,
             functionName: 'royaltyInfo',
-            args: [i, BigInt('1000000000000000000')], // 1 ETH in wei
+            args: [i, BigInt('1000000000000000000')], // 1 STT in wei
           }),
         ])
 

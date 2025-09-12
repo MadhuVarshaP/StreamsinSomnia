@@ -3,11 +3,12 @@
 
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
+import { formatEther } from 'viem'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
 import { ShoppingCart, DollarSign, Users, TrendingUp, Image as ImageIcon } from 'lucide-react'
-import { useRoyaltyRouter, useRoyaltyRouterInfo, useActiveListings, useStreamingRoyaltyNFT, useAllNFTs } from '@/hooks/use-contracts'
+import { useRoyaltyRouter, useRoyaltyRouterInfo, useActiveListings, useStreamingRoyaltyNFT, useAllNFTs, useSTTToken } from '@/hooks/use-contracts'
 import { TransactionVerification } from '@/components/ui/transaction-verification'
 import { NFTCard } from './nft-card'
 
@@ -21,15 +22,22 @@ interface NFTData {
 export function NFTMarketplace() {
   const { address, isConnected } = useAccount()
   const { buyNFT, isPending: isBuying, isConfirmed: isBuyConfirmed, hash: buyHash, contractAddress } = useRoyaltyRouter()
-  const { nftContract } = useRoyaltyRouterInfo()
+  const { nftContract, tokenContract } = useRoyaltyRouterInfo()
   const { tokenIds, listings } = useActiveListings()
   const { } = useStreamingRoyaltyNFT()
   const { allNFTs, isLoading: isLoadingNFTs } = useAllNFTs()
+  const { approveSTT, balance: sttBalance, useSTTAllowance } = useSTTToken()
   
   const [selectedNFT, setSelectedNFT] = useState<NFTData | null>(null)
   const [showBuyVerification, setShowBuyVerification] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [localBuyHash, setLocalBuyHash] = useState<`0x${string}` | null>(null)
+
+  // Get current STT allowance for the router
+  const { data: currentAllowance } = useSTTAllowance(
+    address as `0x${string}`, 
+    tokenContract as `0x${string}`
+  )
 
   // Combine token IDs with their listing data
   const activeListings = tokenIds.map((tokenId, index) => ({
@@ -66,15 +74,41 @@ export function NFTMarketplace() {
   }, [localBuyHash])
 
   const handleBuyNFT = async (tokenId: bigint, price: string) => {
-    if (!address) return
+    if (!address || !tokenContract) return
     
     try {
-      const txHash = await buyNFT(tokenId, price)
-      // do not show immediately; wait for wallet to broadcast and hash available
+      // First, check if we have enough STT balance
+      const requiredAmount = parseFloat(price)
+      const currentBalance = parseFloat(sttBalance)
+      
+      if (currentBalance < requiredAmount) {
+        alert(`Insufficient STT balance. You have ${currentBalance.toFixed(2)} STT but need ${requiredAmount.toFixed(2)} STT.`)
+        return
+      }
+
+      // Check current allowance
+      const allowanceAmount = currentAllowance ? parseFloat(formatEther(currentAllowance)) : 0
+      
+      // If allowance is insufficient, approve first
+      if (allowanceAmount < requiredAmount) {
+        try {
+          await approveSTT(tokenContract as `0x${string}`, price)
+          // Wait a moment for the approval to be processed
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        } catch (approveError) {
+          console.error('Approval error:', approveError)
+          alert('Failed to approve STT tokens. Please try again.')
+          return
+        }
+      }
+
+      // Now proceed with the purchase
+      const txHash = await buyNFT(tokenId)
       setLocalBuyHash(txHash as `0x${string}`)
       setSelectedNFT(null)
     } catch (error) {
       console.error('Buy error:', error)
+      alert('Failed to purchase NFT. Please try again.')
     }
   }
 
@@ -133,7 +167,7 @@ export function NFTMarketplace() {
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Avg. Price</p>
                   <p className="text-lg font-semibold text-orange-400">
-                    {activeListings.length > 0 ? (activeListings.reduce((sum, listing) => sum + parseFloat(listing.price), 0) / activeListings.length).toFixed(4) : '0.0000'} ETH
+                    {activeListings.length > 0 ? (activeListings.reduce((sum, listing) => sum + parseFloat(listing.price), 0) / activeListings.length).toFixed(4) : '0.0000'} STT
                   </p>
                 </div>
               </div>
@@ -231,7 +265,7 @@ export function NFTMarketplace() {
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-black/20 border border-lime-500/10">
                 <p className="text-sm text-[#f5eada]/60 mb-2">Purchase Price</p>
-                <p className="text-2xl font-bold text-lime-400">{selectedNFT.price} ETH</p>
+                <p className="text-2xl font-bold text-lime-400">{selectedNFT.price} STT</p>
               </div>
               
               {/* Royalty Information */}
@@ -240,15 +274,15 @@ export function NFTMarketplace() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-[#f5eada]/80">Sale Price:</span>
-                    <span className="text-lime-400">{selectedNFT.price} ETH</span>
+                    <span className="text-lime-400">{selectedNFT.price} STT</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#f5eada]/80">Royalty (10%):</span>
-                    <span className="text-cyan-400">{(parseFloat(selectedNFT.price || '0') * 0.1).toFixed(4)} ETH</span>
+                    <span className="text-cyan-400">{(parseFloat(selectedNFT.price || '0') * 0.1).toFixed(4)} STT</span>
                   </div>
                   <div className="flex justify-between border-t border-lime-500/20 pt-1">
                     <span className="text-[#f5eada]/80">Seller Receives:</span>
-                    <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') * 0.9).toFixed(4)} ETH</span>
+                    <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') * 0.9).toFixed(4)} STT</span>
                   </div>
                 </div>
               </div>

@@ -9,7 +9,8 @@ import {
   STREAMING_ROYALTY_NFT_ABI, 
   ROYALTY_SPLITTER_FACTORY_ABI, 
   ROYALTY_SPLITTER_ABI,
-  ROYALTY_ROUTER_ABI
+  ROYALTY_ROUTER_ABI,
+  STT_TOKEN_ABI
 } from '@/lib/contracts'
 
 // Shared public client for awaiting receipts & decoding logs
@@ -403,7 +404,7 @@ export function useMintWithSplitter() {
       // 4) List NFT for sale
       let listHash: `0x${string}`
       try {
-        console.log('Listing NFT for sale at price:', listingPrice, 'ETH')
+        console.log('Listing NFT for sale at price:', listingPrice, 'STT')
         const listResult = await writeContractAsync({
           address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
           abi: ROYALTY_ROUTER_ABI,
@@ -479,9 +480,16 @@ export function useRoyaltyRouterInfo() {
     functionName: 'meta',
   })
 
+  const { data: tokenContract } = useReadContract({
+    address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+    abi: ROYALTY_ROUTER_ABI,
+    functionName: 'token',
+  })
+
   return {
     nftContract,
     metaContract,
+    tokenContract,
   }
 }
 
@@ -505,15 +513,15 @@ export function useRoyaltyRouter() {
     }
   }
 
-  // Buy NFT function
-  const buyNFT = async (tokenId: bigint, price: string): Promise<string> => {
+  // Buy NFT function (now uses STT tokens instead of ETH)
+  const buyNFT = async (tokenId: bigint): Promise<string> => {
     try {
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
         abi: ROYALTY_ROUTER_ABI,
         functionName: 'buyNFT',
         args: [tokenId],
-        value: parseEther(price),
+        // No value field needed since we're using STT tokens
       })
       return txHash
     } catch (err) {
@@ -711,4 +719,108 @@ export function useNFTMetadata(tokenURI: string) {
   }, [tokenURI])
 
   return { metadata, isLoading, error }
+}
+
+// Hook for STT Token interactions
+export function useSTTToken() {
+  const { address, isConnected } = useAccount()
+  const { writeContractAsync, data: hash, isPending, error } = useWriteContract()
+
+  // Read STT token balance
+  const { data: balance, refetch: refetchBalance } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && isConnected }
+  })
+
+  // Read STT token info
+  const { data: name } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'name',
+  })
+
+  const { data: symbol } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'symbol',
+  })
+
+  const { data: decimals } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'decimals',
+  })
+
+  // Get STT tokens from faucet (owner function)
+  const getSTTTokens = async (amount: string = '1000') => {
+    if (!address) throw new Error('Wallet not connected')
+    
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.STT_TOKEN,
+        abi: STT_TOKEN_ABI,
+        functionName: 'sendToken',
+        args: [address, parseEther(amount)],
+      })
+      
+      // Refetch balance after successful transaction
+      setTimeout(() => refetchBalance(), 2000)
+      
+      return txHash
+    } catch (err) {
+      console.error('Get STT tokens error:', err)
+      throw err
+    }
+  }
+
+  // Approve STT tokens for spending
+  const approveSTT = async (spender: `0x${string}`, amount: string) => {
+    if (!address) throw new Error('Wallet not connected')
+    
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.STT_TOKEN,
+        abi: STT_TOKEN_ABI,
+        functionName: 'approve',
+        args: [spender, parseEther(amount)],
+      })
+      
+      return txHash
+    } catch (err) {
+      console.error('Approve STT error:', err)
+      throw err
+    }
+  }
+
+  // Check STT allowance
+  const useSTTAllowance = (owner: `0x${string}`, spender: `0x${string}`) => {
+    return useReadContract({
+      address: CONTRACT_ADDRESSES.STT_TOKEN,
+      abi: STT_TOKEN_ABI,
+      functionName: 'allowance',
+      args: [owner, spender],
+    })
+  }
+
+  return {
+    // Data
+    balance: balance ? formatEther(balance) : '0',
+    name,
+    symbol,
+    decimals,
+    
+    // Functions
+    getSTTTokens,
+    approveSTT,
+    useSTTAllowance,
+    refetchBalance,
+    
+    // Transaction state
+    hash,
+    isPending,
+    error,
+  }
 }

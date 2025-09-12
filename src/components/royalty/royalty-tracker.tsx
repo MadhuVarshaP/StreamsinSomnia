@@ -90,7 +90,7 @@ export function RoyaltyTracker() {
                 <DollarSign className="h-5 w-5 text-lime-400" />
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Total Earnings</p>
-                  <p className="text-lg font-semibold text-lime-400">{totalEarnings} ETH</p>
+                  <p className="text-lg font-semibold text-lime-400">{totalEarnings} STT</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
@@ -112,7 +112,7 @@ export function RoyaltyTracker() {
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Avg. per Event</p>
                   <p className="text-lg font-semibold text-yellow-400">
-                    {royaltyEvents.length > 0 ? (parseFloat(totalEarnings) / royaltyEvents.length).toFixed(4) : '0.0000'} ETH
+                    {royaltyEvents.length > 0 ? (parseFloat(totalEarnings) / royaltyEvents.length).toFixed(4) : '0.0000'} STT
                   </p>
                 </div>
               </div>
@@ -180,7 +180,7 @@ export function RoyaltyTracker() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-lime-400">+{event.amount} ETH</p>
+                      <p className="font-semibold text-lime-400">+{event.amount} STT</p>
                       <Badge 
                         variant="secondary" 
                         className={`${

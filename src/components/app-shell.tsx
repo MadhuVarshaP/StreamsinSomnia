@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { WalletConnect } from "./wallet/wallet-connect"
 import { NetworkSwitcher } from "./wallet/network-switcher"
 import { NetworkGuard } from "./wallet/network-guard"
+import { STTTokenBalance } from "./wallet/stt-token-balance"
 import { Menu } from "lucide-react"
 
 
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <div className="flex items-center gap-3">
+            <STTTokenBalance />
             <NetworkSwitcher />
             <WalletConnect />
           </div>
