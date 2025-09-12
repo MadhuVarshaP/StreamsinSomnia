@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
       'gateway.pinata.cloud',
       'ipfs.io',
       'cloudflare-ipfs.com',
-      'dweb.link'
+      'dweb.link',
+      'picsum.photos',
+      'images.unsplash.com'
     ],
     remotePatterns: [
       {
@@ -34,6 +36,24 @@ const nextConfig: NextConfig = {
         hostname: 'dweb.link',
         port: '',
         pathname: '/ipfs/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
       }
     ]
   }

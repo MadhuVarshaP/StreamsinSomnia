@@ -1,8 +1,8 @@
 export const CONTRACT_ADDRESSES = {
   STREAMING_ROYALTY_NFT: "0xc0b79C48bD4Db891F073499FBd51fC2FaAbD5D03", 
-  ROYALTY_ROUTER: "0x1cf73D4D0bDa7244645C8223C5AfBba5d918De89",
+  ROYALTY_ROUTER: "0xDcc8eC24512013aa0Fd565E967ABdf4223501BB6",
   ROYALTY_SPLITTER_FACTORY: "0xe893b73f1339C4F40747F660FC1188aA26976e5c",
-  STT_TOKEN: "0xa9F008e6eA87A67a26F91bd3bEd324a1bFD253FC", 
+  STT_TOKEN: "0x34d256dC9f6e10d899dE8eDA906559Fa51a01144", 
 } as const
 
 // Contract ABIs
@@ -923,6 +923,92 @@ export const STT_TOKEN_ABI = [
 		"type": "constructor"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "allowance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "needed",
+				"type": "uint256"
+			}
+		],
+		"name": "ERC20InsufficientAllowance",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "balance",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "needed",
+				"type": "uint256"
+			}
+		],
+		"name": "ERC20InsufficientBalance",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "approver",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidApprover",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "receiver",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidReceiver",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidSender",
+		"type": "error"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "ERC20InvalidSpender",
+		"type": "error"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -1005,7 +1091,7 @@ export const STT_TOKEN_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "value",
 				"type": "uint256"
 			}
 		],
@@ -1041,12 +1127,64 @@ export const STT_TOKEN_ABI = [
 	},
 	{
 		"inputs": [],
+		"name": "claimFromFaucet",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "decimals",
 		"outputs": [
 			{
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "faucetAmount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "faucetCooldown",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "lastFaucetClaim",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -1077,10 +1215,6 @@ export const STT_TOKEN_ABI = [
 		],
 		"stateMutability": "view",
 		"type": "function"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
 	},
 	{
 		"inputs": [
@@ -1114,6 +1248,32 @@ export const STT_TOKEN_ABI = [
 			}
 		],
 		"name": "sendToken",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_amount",
+				"type": "uint256"
+			}
+		],
+		"name": "setFaucetAmount",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_cooldown",
+				"type": "uint256"
+			}
+		],
+		"name": "setFaucetCooldown",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1153,7 +1313,7 @@ export const STT_TOKEN_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "value",
 				"type": "uint256"
 			}
 		],
@@ -1182,7 +1342,7 @@ export const STT_TOKEN_ABI = [
 			},
 			{
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "value",
 				"type": "uint256"
 			}
 		],
@@ -1196,11 +1356,45 @@ export const STT_TOKEN_ABI = [
 		],
 		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
 	}
 ] as const
 
-// ERC2981 Royalty Standard ABI
 export const ROYALTY_ROUTER_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "buyNFT",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			}
+		],
+		"name": "listNFT",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
 	{
 		"inputs": [
 			{
@@ -1268,19 +1462,6 @@ export const ROYALTY_ROUTER_ABI = [
 		"type": "event"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "tokenId",
-				"type": "uint256"
-			}
-		],
-		"name": "buyNFT",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"inputs": [],
 		"name": "getActiveListings",
 		"outputs": [
@@ -1313,24 +1494,6 @@ export const ROYALTY_ROUTER_ABI = [
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "tokenId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "price",
-				"type": "uint256"
-			}
-		],
-		"name": "listNFT",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{

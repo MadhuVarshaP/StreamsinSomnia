@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
 import { ShoppingCart, DollarSign, Users, TrendingUp, Image as ImageIcon } from 'lucide-react'
 import { useRoyaltyRouter, useRoyaltyRouterInfo, useActiveListings, useStreamingRoyaltyNFT, useAllNFTs, useSTTToken } from '@/hooks/use-contracts'
+import { CONTRACT_ADDRESSES } from '@/lib/contracts'
 import { TransactionVerification } from '@/components/ui/transaction-verification'
 import { NFTCard } from './nft-card'
+import { useToast } from '@/hooks/use-toast'
 
 interface NFTData {
   tokenId: bigint
@@ -23,20 +25,22 @@ export function NFTMarketplace() {
   const { address, isConnected } = useAccount()
   const { buyNFT, isPending: isBuying, isConfirmed: isBuyConfirmed, hash: buyHash, contractAddress } = useRoyaltyRouter()
   const { nftContract, tokenContract } = useRoyaltyRouterInfo()
-  const { tokenIds, listings } = useActiveListings()
+  const { tokenIds, listings, refetch: refetchListings } = useActiveListings()
   const { } = useStreamingRoyaltyNFT()
-  const { allNFTs, isLoading: isLoadingNFTs } = useAllNFTs()
-  const { approveSTT, balance: sttBalance, useSTTAllowance } = useSTTToken()
+  const { allNFTs, isLoading: isLoadingNFTs, refetch: refetchNFTs } = useAllNFTs()
+  const { approveSTT, balance: sttBalance, useSTTAllowance, refetchBalance } = useSTTToken()
+  const { toast } = useToast()
   
   const [selectedNFT, setSelectedNFT] = useState<NFTData | null>(null)
   const [showBuyVerification, setShowBuyVerification] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [localBuyHash, setLocalBuyHash] = useState<`0x${string}` | null>(null)
+  const [isApproving, setIsApproving] = useState(false)
 
   // Get current STT allowance for the router
   const { data: currentAllowance } = useSTTAllowance(
     address as `0x${string}`, 
-    tokenContract as `0x${string}`
+    CONTRACT_ADDRESSES.ROYALTY_ROUTER as `0x${string}`
   )
 
   // Combine token IDs with their listing data
@@ -82,7 +86,11 @@ export function NFTMarketplace() {
       const currentBalance = parseFloat(sttBalance)
       
       if (currentBalance < requiredAmount) {
-        alert(`Insufficient STT balance. You have ${currentBalance.toFixed(2)} STT but need ${requiredAmount.toFixed(2)} STT.`)
+        toast({
+          title: "Insufficient Balance",
+          description: `You have ${currentBalance.toFixed(2)} STT but need ${requiredAmount.toFixed(2)} STT.`,
+          variant: "destructive",
+        })
         return
       }
 
@@ -91,14 +99,27 @@ export function NFTMarketplace() {
       
       // If allowance is insufficient, approve first
       if (allowanceAmount < requiredAmount) {
+        setIsApproving(true)
         try {
-          await approveSTT(tokenContract as `0x${string}`, price)
+          await approveSTT(CONTRACT_ADDRESSES.ROYALTY_ROUTER as `0x${string}`, price)
           // Wait a moment for the approval to be processed
           await new Promise(resolve => setTimeout(resolve, 2000))
+          toast({
+            title: "Approval Successful",
+            description: "STT tokens approved. Proceeding with purchase...",
+            duration: 3000,
+          })
         } catch (approveError) {
           console.error('Approval error:', approveError)
-          alert('Failed to approve STT tokens. Please try again.')
+          toast({
+            title: "Approval Failed",
+            description: "Failed to approve STT tokens. Please try again.",
+            variant: "destructive",
+          })
+          setIsApproving(false)
           return
+        } finally {
+          setIsApproving(false)
         }
       }
 
@@ -106,9 +127,30 @@ export function NFTMarketplace() {
       const txHash = await buyNFT(tokenId)
       setLocalBuyHash(txHash as `0x${string}`)
       setSelectedNFT(null)
+      
+      // Show success message
+      toast({
+        title: "Purchase Successful!",
+        description: `You have successfully purchased NFT #${tokenId.toString()}. The ownership has been transferred to your wallet.`,
+        duration: 5000,
+      })
+      
+      // Refresh data after successful purchase
+      setTimeout(() => {
+        refetchBalance()
+        refetchNFTs()
+        refetchListings()
+      }, 2000)
+      
     } catch (error) {
       console.error('Buy error:', error)
-      alert('Failed to purchase NFT. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to purchase NFT. Please try again.'
+      
+      toast({
+        title: "Purchase Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
     }
   }
 
@@ -181,24 +223,6 @@ export function NFTMarketplace() {
                 </div>
               </div>
             </div>
-
-            
-            {/* Royalty Router Info */}
-            {/* {nftContract && metaContract && (
-              <div className="mt-4 p-3 rounded-lg bg-black/20 border border-lime-500/10">
-                <p className="text-xs text-[#f5eada]/60 mb-2">Royalty Router Configuration</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-[#f5eada]/60">NFT Contract:</span>
-                    <span className="text-lime-400 ml-2">{nftContract.slice(0, 6)}...{nftContract.slice(-4)}</span>
-                  </div>
-                  <div>
-                    <span className="text-[#f5eada]/60">Meta Contract:</span>
-                    <span className="text-cyan-400 ml-2">{metaContract.slice(0, 6)}...{metaContract.slice(-4)}</span>
-                  </div>
-                </div>
-              </div>
-            )} */}
           </CardContent>
         </Card>
       </motion.div>
@@ -208,16 +232,20 @@ export function NFTMarketplace() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-4 md:px-8"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-4 md:px-8 max-w-7xl mx-auto"
       >
         {isLoadingNFTs ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl">
-              <CardContent className="p-6">
-                <div className="animate-pulse">
-                  <div className="w-full h-48 bg-lime-500/20 rounded-lg mb-4" />
-                  <div className="h-4 bg-lime-500/20 rounded mb-2" />
-                  <div className="h-4 bg-lime-500/20 rounded w-2/3" />
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl h-[520px]">
+              <CardContent className="p-0 h-full flex flex-col">
+                <div className="animate-pulse h-full flex flex-col">
+                  <div className="w-full h-52 bg-lime-500/20" />
+                  <div className="flex-1 p-6 space-y-4">
+                    <div className="h-6 bg-lime-500/20 rounded mb-2" />
+                    <div className="h-4 bg-lime-500/20 rounded w-2/3" />
+                    <div className="h-4 bg-lime-500/20 rounded w-1/2" />
+                    <div className="h-20 bg-lime-500/20 rounded" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -285,6 +313,14 @@ export function NFTMarketplace() {
                     <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') * 0.9).toFixed(4)} STT</span>
                   </div>
                 </div>
+                <div className="mt-3 p-2 rounded bg-lime-500/10 border border-lime-500/20">
+                  <p className="text-xs text-lime-400/80">
+                    ✅ Ownership will be transferred to your wallet
+                  </p>
+                  <p className="text-xs text-lime-400/80">
+                    ✅ Royalty will be distributed to creators automatically
+                  </p>
+                </div>
               </div>
               
               <div className="flex gap-3">
@@ -297,10 +333,10 @@ export function NFTMarketplace() {
                 </Button>
                 <Button
                   onClick={() => handleBuyNFT(selectedNFT.tokenId, selectedNFT.price || '0')}
-                  disabled={isBuying}
-                  className="flex-1 bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600"
+                  disabled={isBuying || isApproving}
+                  className="flex-1 bg-gradient-to-r from-lime-500 to-cyan-500 text-white hover:from-lime-600 hover:to-cyan-600"                                                                                    
                 >
-                  {isBuying ? 'Processing...' : 'Purchase'}
+                  {isApproving ? 'Approving...' : isBuying ? 'Processing...' : 'Purchase'}
                 </Button>
               </div>
             </div>

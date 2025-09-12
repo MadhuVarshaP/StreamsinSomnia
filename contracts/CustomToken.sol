@@ -34,7 +34,50 @@ contract CustomToken is ERC20 {
     }
 
     function sendToken(address recipient, uint256 amount) external onlyOwner {
+        require(recipient != address(0), "Invalid recipient address");
+        require(amount > 0, "Amount must be greater than 0");
+        
+        // Check if contract has enough balance, if not mint more
+        uint256 contractBalance = balanceOf(address(this));
+        if (contractBalance < amount) {
+            // Mint additional tokens to the contract
+            _mint(address(this), amount - contractBalance + (1000 * 10**_customDecimals)); // Mint extra for future use
+        }
+        
         _transfer(address(this), recipient, amount);
+    }
+
+    // Faucet function that allows users to get tokens (with rate limiting)
+    mapping(address => uint256) public lastFaucetClaim;
+    uint256 public faucetAmount = 1000 * 10**18; // 1000 tokens
+    uint256 public faucetCooldown = 24 hours; // 24 hour cooldown
+
+    function claimFromFaucet() external {
+        require(msg.sender != address(0), "Invalid address");
+        require(
+            block.timestamp >= lastFaucetClaim[msg.sender] + faucetCooldown,
+            "Faucet cooldown not met. Try again later."
+        );
+        
+        lastFaucetClaim[msg.sender] = block.timestamp;
+        
+        // Check if contract has enough balance, if not mint more
+        uint256 contractBalance = balanceOf(address(this));
+        if (contractBalance < faucetAmount) {
+            // Mint additional tokens to the contract
+            _mint(address(this), faucetAmount * 10); // Mint 10x for future claims
+        }
+        
+        _transfer(address(this), msg.sender, faucetAmount);
+    }
+
+    // Owner can set faucet parameters
+    function setFaucetAmount(uint256 _amount) external onlyOwner {
+        faucetAmount = _amount;
+    }
+
+    function setFaucetCooldown(uint256 _cooldown) external onlyOwner {
+        faucetCooldown = _cooldown;
     }
 
     receive() external payable {}

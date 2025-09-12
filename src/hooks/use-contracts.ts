@@ -545,7 +545,7 @@ export function useRoyaltyRouter() {
 
 // Hook for getting active listings from the marketplace
 export function useActiveListings() {
-  const { data: listingsData } = useReadContract({
+  const { data: listingsData, refetch: refetchListings } = useReadContract({
     address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
     abi: ROYALTY_ROUTER_ABI,
     functionName: 'getActiveListings',
@@ -554,6 +554,7 @@ export function useActiveListings() {
   return {
     tokenIds: listingsData?.[0] || [],
     listings: listingsData?.[1] || [],
+    refetch: refetchListings,
   }
 }
 
@@ -593,8 +594,7 @@ export function useAllNFTs() {
   const [totalSupply, setTotalSupply] = useState<bigint>(BigInt(0))
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchNFTs = async () => {
+  const fetchNFTs = async () => {
       try {
         setIsLoading(true)
         const response = await fetch('/api/nfts')
@@ -621,6 +621,7 @@ export function useAllNFTs() {
       }
     }
 
+  useEffect(() => {
     fetchNFTs()
   }, [])
 
@@ -628,6 +629,7 @@ export function useAllNFTs() {
     allNFTs: nfts,
     totalSupply,
     isLoading,
+    refetch: fetchNFTs,
   }
 }
 
@@ -754,16 +756,16 @@ export function useSTTToken() {
     functionName: 'decimals',
   })
 
-  // Get STT tokens from faucet (owner function)
-  const getSTTTokens = async (amount: string = '1000') => {
+  // Get STT tokens from faucet
+  const getSTTTokens = async () => {
     if (!address) throw new Error('Wallet not connected')
     
     try {
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.STT_TOKEN,
         abi: STT_TOKEN_ABI,
-        functionName: 'sendToken',
-        args: [address, parseEther(amount)],
+        functionName: 'claimFromFaucet',
+        args: [],
       })
       
       // Refetch balance after successful transaction
@@ -775,6 +777,32 @@ export function useSTTToken() {
       throw err
     }
   }
+
+  // Check faucet cooldown
+  const { data: lastFaucetClaim } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'lastFaucetClaim',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && isConnected }
+  })
+
+  const { data: faucetCooldown } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'faucetCooldown',
+  })
+
+  const { data: faucetAmount } = useReadContract({
+    address: CONTRACT_ADDRESSES.STT_TOKEN,
+    abi: STT_TOKEN_ABI,
+    functionName: 'faucetAmount',
+  })
+
+  // Calculate if user can claim from faucet
+  const canClaimFromFaucet = lastFaucetClaim && faucetCooldown 
+    ? (Date.now() / 1000) >= (Number(lastFaucetClaim) + Number(faucetCooldown))
+    : true // If no previous claim, user can claim
 
   // Approve STT tokens for spending
   const approveSTT = async (spender: `0x${string}`, amount: string) => {
@@ -811,6 +839,10 @@ export function useSTTToken() {
     name,
     symbol,
     decimals,
+    faucetAmount: faucetAmount ? formatEther(faucetAmount) : '1000',
+    faucetCooldown: faucetCooldown ? Number(faucetCooldown) : 86400, // 24 hours in seconds
+    lastFaucetClaim: lastFaucetClaim ? Number(lastFaucetClaim) : 0,
+    canClaimFromFaucet,
     
     // Functions
     getSTTTokens,
