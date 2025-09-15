@@ -234,6 +234,14 @@ export default function HistoryPage() {
                   >
                     Transfers
                   </Button>
+                  <Button
+                    variant={filterType === "ROYALTY_PAYMENT" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterType("ROYALTY_PAYMENT")}
+                    className="text-xs"
+                  >
+                    Royalties
+                  </Button>
                 </div>
                 <div className="relative w-full md:w-80">
                   <Input
@@ -327,7 +335,7 @@ export default function HistoryPage() {
                           <td className="py-3 pr-4 text-[#f5eada]/90">
                             {formatTransactionDate(tx.timestamp)}
                           </td>
-                          <td className="py-3 pr-4 text-[#f5eada]/90 font-mono text-xs">
+                          <td className="py-3 pr-4 text-[#f5eada]/90 text-xs">
                             {shortenAddress(tx.hash, 6)}
                           </td>
                           <td className="py-3">

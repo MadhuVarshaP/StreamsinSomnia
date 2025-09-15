@@ -124,7 +124,7 @@ export function NFTCard({
               </h3>
               <div className="flex items-center gap-2 text-[#f5eada]/70 text-sm font-medium">
                 <Users className="h-4 w-4 text-cyan-400" />
-                <span className="font-mono">Owner: {owner.slice(0, 6)}...{owner.slice(-4)}</span>
+                <span className="">Owner: {owner.slice(0, 6)}...{owner.slice(-4)}</span>
               </div>
             </div>
 
@@ -156,7 +156,7 @@ export function NFTCard({
                   <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-cyan-500/5 to-transparent" />
                   <div className="relative">
                     <p className="text-xs text-cyan-300/90 mb-1 font-semibold uppercase tracking-wide">Listed Price</p>
-                    <p className="text-2xl font-bold text-cyan-400 drop-shadow-sm font-mono">{listingPrice} STT</p>
+                    <p className="text-2xl font-bold text-cyan-400 drop-shadow-sm ">{listingPrice} STT</p>
                   </div>
                 </div>
               ) : (

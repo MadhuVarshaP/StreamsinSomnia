@@ -305,10 +305,10 @@ export function MintNftForm() {
                 <Input
                   type="number"
                   min="0"
-                  max="1000"
-                  step="10"
-                  value={royaltyBps / 10}
-                  onChange={(e) => setRoyaltyBps(Number(e.target.value) * 10)}
+                  max="100"
+                  step="0.1"
+                  value={royaltyBps / 100}
+                  onChange={(e) => setRoyaltyBps(Number(e.target.value) * 100)}
                   className="bg-black/40 border-lime-500/20 text-[#f5eada] focus:border-lime-500/40 focus:ring-lime-500/20"
                   placeholder="10"
                 />

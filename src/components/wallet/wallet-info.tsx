@@ -4,7 +4,7 @@ import { useAccount, useBalance, useChainId } from 'wagmi'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Wallet, Coins, Network } from 'lucide-react'
-import { formatAddress } from '@/lib/utils'
+import { shortenAddress } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
 const CHAIN_NAMES: Record<number, { name: string; color: string; isTarget: boolean }> = {
@@ -47,8 +47,8 @@ export function WalletInfo() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-[#f5eada]/80">Address</span>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-sm text-[#f5eada]">
-                  {formatAddress(address, 6)}
+                <span className=" text-sm text-[#f5eada]">
+                  {shortenAddress(address, 6)}
                 </span>
                 <Badge 
                   variant="secondary" 
@@ -86,7 +86,7 @@ export function WalletInfo() {
                 <span className="text-sm text-[#f5eada]/80">Balance</span>
                 <div className="flex items-center gap-2">
                   <Coins className="h-4 w-4 text-yellow-400" />
-                  <span className="text-sm text-[#f5eada] font-mono">
+                  <span className="text-sm text-[#f5eada] ">
                     {parseFloat(balance.formatted).toFixed(4)} {balance.symbol}
                   </span>
                 </div>

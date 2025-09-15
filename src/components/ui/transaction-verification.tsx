@@ -127,7 +127,7 @@ export function TransactionVerification({
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-black/40 border border-lime-500/20">
-                    <code className="text-xs text-[#f5eada]/80 font-mono flex-1">
+                    <code className="text-xs text-[#f5eada]/80  flex-1">
                       {shortenAddress(transactionHash, 8)}
                     </code>
                     <Button
@@ -146,7 +146,7 @@ export function TransactionVerification({
                   <div className="space-y-2">
                     <span className="text-sm font-medium text-[#f5eada]/80">Contract Address</span>
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-black/40 border border-lime-500/20">
-                      <code className="text-xs text-[#f5eada]/80 font-mono flex-1">
+                      <code className="text-xs text-[#f5eada]/80  flex-1">
                         {shortenAddress(contractAddress, 8)}
                       </code>
                       <Button

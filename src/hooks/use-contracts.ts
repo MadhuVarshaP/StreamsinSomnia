@@ -626,9 +626,9 @@ export function useTransactionHistory() {
     setError(null)
 
     try {
-      // Get current block number and fetch recent blocks only
+      // Get current block number and fetch more blocks for better coverage
       const currentBlock = await publicClient.getBlockNumber()
-      const maxBlocks = BigInt(1000) // Look back only 1000 blocks for better performance
+      const maxBlocks = BigInt(10000) // Look back 10000 blocks for better coverage
       const fromBlock = currentBlock > maxBlocks ? currentBlock - maxBlocks : BigInt(0)
       
       console.log(`Fetching transaction history from block ${fromBlock} to ${currentBlock} for address ${address}`)
@@ -651,9 +651,10 @@ export function useTransactionHistory() {
         }
       }
 
-      // 1. Get NFT transfers (mints, sales, etc.)
+      // 1. Get NFT transfers (mints, sales, etc.) - both sent and received
       try {
-        const nftTransfers = await fetchLogs({
+        // Get NFT transfers where user is sender
+        const nftTransfersSent = await fetchLogs({
           address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
           event: {
             type: 'event',
@@ -665,10 +666,28 @@ export function useTransactionHistory() {
             ]
           },
           args: {
-            from: address,
+            from: address
+          }
+        })
+
+        // Get NFT transfers where user is recipient
+        const nftTransfersReceived = await fetchLogs({
+          address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+          event: {
+            type: 'event',
+            name: 'Transfer',
+            inputs: [
+              { name: 'from', type: 'address', indexed: true },
+              { name: 'to', type: 'address', indexed: true },
+              { name: 'tokenId', type: 'uint256', indexed: true }
+            ]
+          },
+          args: {
             to: address
           }
         })
+
+        const nftTransfers = [...nftTransfersSent, ...nftTransfersReceived]
 
         for (const transfer of nftTransfers) {
           const tx = await publicClient.getTransaction({ hash: transfer.transactionHash })
@@ -693,9 +712,10 @@ export function useTransactionHistory() {
         console.error('Error fetching NFT transfers:', err)
       }
 
-      // 2. Get STT token transfers
+      // 2. Get STT token transfers - both sent and received
       try {
-        const sttTransfers = await fetchLogs({
+        // Get STT transfers where user is sender
+        const sttTransfersSent = await fetchLogs({
           address: CONTRACT_ADDRESSES.STT_TOKEN,
           event: {
             type: 'event',
@@ -707,10 +727,28 @@ export function useTransactionHistory() {
             ]
           },
           args: {
-            from: address,
+            from: address
+          }
+        })
+
+        // Get STT transfers where user is recipient
+        const sttTransfersReceived = await fetchLogs({
+          address: CONTRACT_ADDRESSES.STT_TOKEN,
+          event: {
+            type: 'event',
+            name: 'Transfer',
+            inputs: [
+              { name: 'from', type: 'address', indexed: true },
+              { name: 'to', type: 'address', indexed: true },
+              { name: 'value', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
             to: address
           }
         })
+
+        const sttTransfers = [...sttTransfersSent, ...sttTransfersReceived]
 
         for (const transfer of sttTransfers) {
           const tx = await publicClient.getTransaction({ hash: transfer.transactionHash })
@@ -872,50 +910,88 @@ export function useTransactionHistory() {
         console.error('Error fetching faucet events:', err)
       }
 
+      // 6. Get royalty payments (STT received from splitters)
+      try {
+        const royaltyEvents = await fetchLogs({
+          address: CONTRACT_ADDRESSES.STT_TOKEN,
+          event: {
+            type: 'event',
+            name: 'Transfer',
+            inputs: [
+              { name: 'from', type: 'address', indexed: true },
+              { name: 'to', type: 'address', indexed: true },
+              { name: 'value', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            to: address
+          }
+        })
+
+        for (const transfer of royaltyEvents) {
+          const tx = await publicClient.getTransaction({ hash: transfer.transactionHash })
+          const receipt = await publicClient.getTransactionReceipt({ hash: transfer.transactionHash })
+          
+          // Check if this is a royalty payment (from a splitter contract, not faucet)
+          const fromAddress = (transfer as any).args?.from || ''
+          if (fromAddress !== CONTRACT_ADDRESSES.STT_TOKEN && fromAddress !== '0x0000000000000000000000000000000000000000') {
+            // Check if the sender is a splitter contract by checking if it has the distribute function
+            try {
+              const code = await publicClient.getCode({ address: fromAddress as `0x${string}` })
+              if (code && code !== '0x') {
+                // This is likely a royalty payment from a splitter
+                allTransactions.push({
+                  id: transfer.transactionHash,
+                  type: 'ROYALTY_PAYMENT',
+                  hash: transfer.transactionHash,
+                  timestamp: Number(tx.blockNumber),
+                  from: fromAddress,
+                  to: (transfer as any).args?.to || '',
+                  tokenId: '',
+                  amount: (transfer as any).args?.value?.toString() || '0',
+                  token: 'STT',
+                  status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+                  gasUsed: receipt.gasUsed.toString(),
+                  gasPrice: tx.gasPrice?.toString() || '0'
+                })
+              }
+            } catch (codeErr) {
+              // Ignore errors when checking contract code
+              console.log('Could not check contract code for:', fromAddress)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching royalty events:', err)
+      }
+
       // Sort transactions by timestamp (newest first)
       allTransactions.sort((a, b) => b.timestamp - a.timestamp)
       
       console.log(`Found ${allTransactions.length} transactions for address ${address}`)
       
-      // If no transactions found, show some mock data for demonstration
+      // If no transactions found in recent blocks, try fetching from a wider range
       if (allTransactions.length === 0) {
-        console.log('No transactions found, showing mock data for demonstration')
-        const mockTransactions: TransactionHistory[] = [
-          {
-            id: 'mock-1',
-            type: 'STT_TRANSFER',
-            hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-            timestamp: Date.now() - 3600000, // 1 hour ago
-            from: '0x0000000000000000000000000000000000000000',
-            to: address,
-            tokenId: '',
-            amount: '1000000000000000000000', // 1000 STT
-            token: 'STT',
-            status: 'SUCCESS',
-            gasUsed: '21000',
-            gasPrice: '20000000000'
-          },
-          {
-            id: 'mock-2',
-            type: 'NFT_MINT',
-            hash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-            timestamp: Date.now() - 7200000, // 2 hours ago
-            from: '0x0000000000000000000000000000000000000000',
-            to: address,
-            tokenId: '1',
-            amount: '0',
-            token: 'NFT',
-            status: 'SUCCESS',
-            gasUsed: '150000',
-            gasPrice: '20000000000',
-            royaltyBps: '500',
-            splitterAddress: '0x1234567890123456789012345678901234567890'
-          }
-        ]
-        setTransactions(mockTransactions)
-      } else {
-        setTransactions(allTransactions)
+        console.log('No transactions found in recent blocks, trying wider range...')
+        try {
+          const widerFromBlock = currentBlock > BigInt(50000) ? currentBlock - BigInt(50000) : BigInt(0)
+          console.log(`Trying wider range from block ${widerFromBlock} to ${currentBlock}`)
+          
+          // Try to fetch any transactions in the wider range
+          const widerLogs = await publicClient.getLogs({
+            fromBlock: widerFromBlock,
+            toBlock: currentBlock,
+            address: [CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT, CONTRACT_ADDRESSES.STT_TOKEN, CONTRACT_ADDRESSES.ROYALTY_ROUTER]
+          })
+          
+          console.log(`Found ${widerLogs.length} logs in wider range`)
+        } catch (widerErr) {
+          console.log('Wider range fetch also failed:', widerErr)
+        }
       }
+      
+      // Set the real transactions (even if empty)
+      setTransactions(allTransactions)
 
     } catch (err) {
       console.error('Error fetching transaction history:', err)
@@ -1114,43 +1190,44 @@ export function useNFTsByOwner(ownerAddress?: string) {
   }>>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchOwnedNFTs = useCallback(async () => {
     if (!ownerAddress) {
       setOwnedNFTs([])
       setIsLoading(false)
       return
     }
 
-    const fetchOwnedNFTs = async () => {
-      try {
-        setIsLoading(true)
-        const response = await fetch('/api/nfts')
-        const data = await response.json()
-        
-        if (data.nfts) {
-          const filteredNFTs = data.nfts
-            .filter((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => nft.owner.toLowerCase() === ownerAddress.toLowerCase())
-            .map((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => ({
-              tokenId: BigInt(nft.tokenId),
-              owner: nft.owner,
-              tokenURI: nft.tokenURI,
-              royaltyInfo: nft.royaltyInfo ? [nft.royaltyInfo.receiver, BigInt(nft.royaltyInfo.amount)] as [string, bigint] : undefined,
-            }))
-          setOwnedNFTs(filteredNFTs)
-        }
-      } catch (error) {
-        console.error('Error fetching owned NFTs:', error)
-      } finally {
-        setIsLoading(false)
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/nfts')
+      const data = await response.json()
+      
+      if (data.nfts) {
+        const filteredNFTs = data.nfts
+          .filter((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => nft.owner.toLowerCase() === ownerAddress.toLowerCase())
+          .map((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => ({
+            tokenId: BigInt(nft.tokenId),
+            owner: nft.owner,
+            tokenURI: nft.tokenURI,
+            royaltyInfo: nft.royaltyInfo ? [nft.royaltyInfo.receiver, BigInt(nft.royaltyInfo.amount)] as [string, bigint] : undefined,
+          }))
+        setOwnedNFTs(filteredNFTs)
       }
+    } catch (error) {
+      console.error('Error fetching owned NFTs:', error)
+    } finally {
+      setIsLoading(false)
     }
-
-    fetchOwnedNFTs()
   }, [ownerAddress])
+
+  useEffect(() => {
+    fetchOwnedNFTs()
+  }, [fetchOwnedNFTs])
 
   return {
     ownedNFTs,
     isLoading,
+    refetch: fetchOwnedNFTs,
   }
 }
 

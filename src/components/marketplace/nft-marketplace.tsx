@@ -140,6 +140,8 @@ export function NFTMarketplace() {
         refetchBalance()
         refetchNFTs()
         refetchListings()
+        // Trigger a page refresh to update ownership in My Streams
+        window.location.reload()
       }, 2000)
       
     } catch (error) {

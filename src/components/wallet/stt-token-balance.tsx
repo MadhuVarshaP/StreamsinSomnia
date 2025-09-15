@@ -109,7 +109,7 @@ export function STTTokenBalance() {
         className="bg-cyan-500/10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm">
+          <span className=" text-sm">
             {balance ? parseFloat(balance).toFixed(2) : '0.00'} {symbol || 'STT'}
           </span>
         </div>

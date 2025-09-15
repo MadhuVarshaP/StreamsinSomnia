@@ -71,7 +71,7 @@ export function WalletConnect() {
           </Button>
         </div>
         
-        <div className="hidden md:block text-sm text-[#f5eada]/80 font-mono">
+        <div className="hidden md:block text-sm text-[#f5eada]/80 ">
           {shortenAddress(address,4)}
         </div>
       </div>
