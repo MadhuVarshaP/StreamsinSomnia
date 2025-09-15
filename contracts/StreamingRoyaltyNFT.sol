@@ -22,7 +22,7 @@ contract StreamingRoyaltyNFT is ERC721URIStorage, ERC2981, Ownable {
         string memory tokenURI_,
         address splitter,
         uint96 royaltyBps
-    ) external onlyOwner returns (uint256 tokenId) {
+    ) external returns (uint256 tokenId) {
         tokenId = ++nextId;
         _mint(to, tokenId);
         _setTokenURI(tokenId, tokenURI_);

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Wallet, LogOut, Copy, Check } from 'lucide-react'
-import { formatAddress } from '@/lib/utils'
+import { shortenAddress } from '@/lib/utils'
 
 export function WalletConnect() {
   const { address, isConnected } = useAccount()
@@ -72,7 +72,7 @@ export function WalletConnect() {
         </div>
         
         <div className="hidden md:block text-sm text-[#f5eada]/80 font-mono">
-          {formatAddress(address)}
+          {shortenAddress(address,4)}
         </div>
       </div>
     )

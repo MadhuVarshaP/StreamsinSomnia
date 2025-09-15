@@ -54,6 +54,12 @@ contract RoyaltyRouter {
         // Transfer royalty in STT from buyer to splitter
         require(token.transferFrom(msg.sender, receiver, royalty), "Royalty transfer failed");
 
+        // Distribute the royalty to all creators in the splitter
+        if (royalty > 0) {
+            (bool success, ) = receiver.call(abi.encodeWithSignature("distribute(uint256)", royalty));
+            require(success, "Royalty distribution failed");
+        }
+
         // Transfer remaining STT from buyer to seller
         require(token.transferFrom(msg.sender, listing.seller, salePrice - royalty), "Seller transfer failed");
 

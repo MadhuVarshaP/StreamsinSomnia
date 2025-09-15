@@ -12,7 +12,7 @@ import { motion } from "framer-motion"
 import { Upload, Plus, Trash2, Sparkles, Users, Image as ImageIcon, CheckCircle, DollarSign } from "lucide-react"
 import { useStreamingRoyaltyNFT, useMintWithSplitter } from "@/hooks/use-contracts"
 import { toast } from "sonner"
-import { formatAddress } from "@/lib/utils"
+import { shortenAddress } from "@/lib/utils"
 import { TransactionVerification } from "@/components/ui/transaction-verification"
 import pinataService from "@/lib/pinata"
 
@@ -386,7 +386,7 @@ export function MintNftForm() {
                     <div className="relative">
                   <Input
                         placeholder="0x..."
-                        value={s.address ? formatAddress(s.address, 4) : ""}
+                        value={s.address ? shortenAddress(s.address, 4) : ""}
                         onChange={(e) => {
                           // If user is typing, allow them to type
                           // If they paste a full address, store it but show short form

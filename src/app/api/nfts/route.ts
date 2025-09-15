@@ -41,7 +41,7 @@ const NFT_ABI = parseAbi([
   'function royaltyInfo(uint256 tokenId, uint256 salePrice) view returns (address, uint256)',
 ])
 
-const CONTRACT_ADDRESS = '0xc0b79C48bD4Db891F073499FBd51fC2FaAbD5D03' as `0x${string}`
+const CONTRACT_ADDRESS = '0x3479FA64Ba4aC2CfbeC9afa651B7d6e3c4859281' as `0x${string}`
 
 export async function GET() {
   try {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ExternalLink, CheckCircle, Copy, X, ExternalLinkIcon } from "lucide-react"
 import { toast } from "sonner"
-import { formatAddress } from "@/lib/utils"
+import { shortenAddress } from "@/lib/utils"
 
 interface TransactionVerificationProps {
   isOpen: boolean
@@ -128,7 +128,7 @@ export function TransactionVerification({
                   </div>
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-black/40 border border-lime-500/20">
                     <code className="text-xs text-[#f5eada]/80 font-mono flex-1">
-                      {formatAddress(transactionHash, 8)}
+                      {shortenAddress(transactionHash, 8)}
                     </code>
                     <Button
                       variant="ghost"
@@ -147,7 +147,7 @@ export function TransactionVerification({
                     <span className="text-sm font-medium text-[#f5eada]/80">Contract Address</span>
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-black/40 border border-lime-500/20">
                       <code className="text-xs text-[#f5eada]/80 font-mono flex-1">
-                        {formatAddress(contractAddress, 8)}
+                        {shortenAddress(contractAddress, 8)}
                       </code>
                       <Button
                         variant="ghost"
