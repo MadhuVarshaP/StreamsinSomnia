@@ -65,8 +65,11 @@ export default function HistoryPage() {
       case 'NFT_MINT': return 'NFT Mint'
       case 'NFT_TRANSFER': return 'NFT Transfer'
       case 'NFT_SALE': return 'NFT Sale'
+      case 'NFT_LISTED': return 'NFT Listed'
+      case 'NFT_BOUGHT': return 'NFT Purchased'
       case 'STT_TRANSFER': return 'STT Transfer'
       case 'ROYALTY_PAYMENT': return 'Royalty Payment'
+      case 'WITHDRAWAL': return 'Earnings Withdrawn'
       case 'CONTRACT_INTERACTION': return 'Contract Interaction'
       default: return type
     }
@@ -77,9 +80,12 @@ export default function HistoryPage() {
       case 'NFT_MINT': return 'bg-green-500/20 text-green-400 border-green-500/30'
       case 'NFT_TRANSFER': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
       case 'NFT_SALE': return 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+      case 'NFT_LISTED': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+      case 'NFT_BOUGHT': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
       case 'STT_TRANSFER': return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
       case 'ROYALTY_PAYMENT': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-      case 'CONTRACT_INTERACTION': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+      case 'WITHDRAWAL': return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      case 'CONTRACT_INTERACTION': return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
     }
   }
@@ -227,12 +233,36 @@ export default function HistoryPage() {
                     Sales
                   </Button>
                   <Button
+                    variant={filterType === "NFT_LISTED" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterType("NFT_LISTED")}
+                    className="text-xs"
+                  >
+                    Listings
+                  </Button>
+                  <Button
                     variant={filterType === "STT_TRANSFER" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setFilterType("STT_TRANSFER")}
                     className="text-xs"
                   >
                     Transfers
+                  </Button>
+                  <Button
+                    variant={filterType === "NFT_BOUGHT" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterType("NFT_BOUGHT")}
+                    className="text-xs"
+                  >
+                    Purchases
+                  </Button>
+                  <Button
+                    variant={filterType === "WITHDRAWAL" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterType("WITHDRAWAL")}
+                    className="text-xs"
+                  >
+                    Withdrawals
                   </Button>
                   <Button
                     variant={filterType === "ROYALTY_PAYMENT" ? "default" : "outline"}

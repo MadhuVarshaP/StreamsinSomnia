@@ -12,6 +12,7 @@ contract RoyaltyRouter {
     IERC20 public immutable token;  // STT Token
 
     event NFTListed(uint256 indexed tokenId, address indexed seller, uint256 price);
+    event NFTBought(uint256 indexed tokenId, address indexed buyer, address indexed seller, uint256 price, uint256 royalty);
     event SaleSettled(uint256 indexed tokenId, uint256 salePrice, uint256 royalty);
 
     struct Listing {
@@ -69,6 +70,7 @@ contract RoyaltyRouter {
         // Deactivate listing
         listing.active = false;
 
+        emit NFTBought(tokenId, msg.sender, listing.seller, salePrice, royalty);
         emit SaleSettled(tokenId, salePrice, royalty);
     }
 

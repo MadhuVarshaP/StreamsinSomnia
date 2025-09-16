@@ -36,6 +36,7 @@ export function NFTMarketplace() {
   const [mounted, setMounted] = useState(false)
   const [localBuyHash, setLocalBuyHash] = useState<`0x${string}` | null>(null)
   const [isApproving, setIsApproving] = useState(false)
+  
 
   // Get current STT allowance for the router
   const { data: currentAllowance } = useSTTAllowance(
@@ -47,23 +48,29 @@ export function NFTMarketplace() {
   const activeListings = tokenIds.map((tokenId, index) => ({
     tokenId,
     seller: listings[index]?.seller || '',
-    price: listings[index]?.price ? (Number(listings[index].price) / 1e18).toFixed(4) : '0',
+    price: listings[index]?.price ? (Number(listings[index].price) / 1e18).toFixed(2) : '0',
     active: listings[index]?.active || false
   })).filter(listing => listing.active)
 
   // Create a map of listed NFTs for quick lookup
   const listedNFTsMap = new Map(activeListings.map(listing => [listing.tokenId.toString(), listing]))
 
-  // Add listing info to all NFTs
-  const allNFTsWithListingInfo = allNFTs.map(nft => {
-    const listing = listedNFTsMap.get(nft.tokenId.toString())
-    return {
-      ...nft,
-      isListed: !!listing,
-      listingPrice: listing?.price || '0',
-      seller: listing?.seller || nft.owner
-    }
-  })
+  // Add listing info to all NFTs and filter out owned NFTs
+  const allNFTsWithListingInfo = allNFTs
+    .map(nft => {
+      const listing = listedNFTsMap.get(nft.tokenId.toString())
+      return {
+        ...nft,
+        isListed: !!listing,
+        listingPrice: listing?.price || '0',
+        seller: listing?.seller || nft.owner
+      }
+    })
+    .filter(nft => {
+      // Only show NFTs that are listed for sale
+      return nft.isListed
+    })
+
 
   // Avoid hydration mismatches: gate rendering until mounted
   useEffect(() => {
@@ -211,7 +218,7 @@ export function NFTMarketplace() {
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Avg. Price</p>
                   <p className="text-lg font-semibold text-orange-400">
-                    {activeListings.length > 0 ? (activeListings.reduce((sum, listing) => sum + parseFloat(listing.price), 0) / activeListings.length).toFixed(4) : '0.0000'} STT
+                    {activeListings.length > 0 ? (activeListings.reduce((sum, listing) => sum + parseFloat(listing.price), 0) / activeListings.length).toFixed(2) : '0.00'} STT
                   </p>
                 </div>
               </div>
@@ -281,6 +288,7 @@ export function NFTMarketplace() {
         )}
       </motion.div>
 
+
       {/* Purchase Modal */}
       {selectedNFT && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -308,11 +316,11 @@ export function NFTMarketplace() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#f5eada]/80">Royalty (10%):</span>
-                    <span className="text-cyan-400">{(parseFloat(selectedNFT.price || '0') * 0.1).toFixed(4)} STT</span>
+                    <span className="text-cyan-400">{(parseFloat(selectedNFT.price || '0') * 0.1).toFixed(2)} STT</span>
                   </div>
                   <div className="flex justify-between border-t border-lime-500/20 pt-1">
                     <span className="text-[#f5eada]/80">Seller Receives:</span>
-                    <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') * 0.9).toFixed(4)} STT</span>
+                    <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') * 0.9).toFixed(2)} STT</span>
                   </div>
                 </div>
                 <div className="mt-3 p-2 rounded bg-lime-500/10 border border-lime-500/20">
@@ -345,6 +353,7 @@ export function NFTMarketplace() {
           </motion.div>
         </div>
       )}
+
 
       {/* Purchase Transaction Verification Popup */}
       {(localBuyHash || buyHash) && (

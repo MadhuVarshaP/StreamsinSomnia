@@ -13,6 +13,7 @@ import {
   ROYALTY_ROUTER_ABI,
   STT_TOKEN_ABI
 } from '@/lib/contracts'
+import { RoyaltyDistribution } from '@/types/nft'
 import { TransactionHistory } from '@/types/nft'
 
 // Shared public client for awaiting receipts & decoding logs
@@ -20,6 +21,71 @@ const publicClient = createPublicClient({
   chain: somniaTestnet,
   transport: http('https://dream-rpc.somnia.network'),
 })
+
+// Helper function to fetch logs in smaller chunks to avoid RPC limits
+async function fetchLogsInChunks(
+  address: `0x${string}` | `0x${string}`[],
+  event: any,
+  args: any,
+  fromBlock: bigint,
+  toBlock: bigint,
+  chunkSize: bigint = BigInt(200) // Reduced chunk size
+) {
+  const logs: any[] = []
+  
+  // If multiple addresses, fetch from each separately
+  if (Array.isArray(address) && address.length > 1) {
+    for (const addr of address) {
+      try {
+        const addressLogs = await fetchLogsInChunks(addr, event, args, fromBlock, toBlock, chunkSize)
+        logs.push(...addressLogs)
+        // Add small delay between requests to avoid overwhelming RPC
+        await new Promise(resolve => setTimeout(resolve, 100))
+      } catch (error) {
+        console.warn(`Failed to fetch logs for address ${addr}:`, error)
+        // Continue with next address
+      }
+    }
+    return logs
+  }
+  
+  // Single address or single item in array
+  const targetAddress = Array.isArray(address) ? address[0] : address
+  let currentFromBlock = fromBlock
+  
+  while (currentFromBlock < toBlock) {
+    const currentToBlock = currentFromBlock + chunkSize > toBlock ? toBlock : currentFromBlock + chunkSize
+    
+    try {
+      const chunkLogs = await publicClient.getLogs({
+        address: targetAddress,
+        event,
+        args,
+        fromBlock: currentFromBlock,
+        toBlock: currentToBlock
+      })
+      logs.push(...chunkLogs)
+    } catch (error) {
+      console.warn(`Failed to fetch logs for block range ${currentFromBlock}-${currentToBlock}:`, error)
+      // Try smaller chunks if this fails
+      if (chunkSize > BigInt(50)) {
+        try {
+          const smallerChunkLogs = await fetchLogsInChunks(targetAddress, event, args, currentFromBlock, currentToBlock, BigInt(50))
+          logs.push(...smallerChunkLogs)
+        } catch (smallerError) {
+          console.warn(`Failed to fetch logs even with smaller chunks:`, smallerError)
+        }
+      }
+    }
+    
+    currentFromBlock = currentToBlock + BigInt(1)
+    
+    // Add small delay between chunks to avoid overwhelming RPC
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  
+  return logs
+}
 
 // Hook for NFT contract interactions
 export function useStreamingRoyaltyNFT() {
@@ -628,7 +694,7 @@ export function useTransactionHistory() {
     try {
       // Get current block number and fetch more blocks for better coverage
       const currentBlock = await publicClient.getBlockNumber()
-      const maxBlocks = BigInt(10000) // Look back 10000 blocks for better coverage
+      const maxBlocks = BigInt(500) // Further reduced to avoid RPC limits
       const fromBlock = currentBlock > maxBlocks ? currentBlock - maxBlocks : BigInt(0)
       
       console.log(`Fetching transaction history from block ${fromBlock} to ${currentBlock} for address ${address}`)
@@ -636,15 +702,16 @@ export function useTransactionHistory() {
       // Get all transactions for the user's address
       const allTransactions: TransactionHistory[] = []
 
-      // Helper function to fetch logs with error handling
+      // Helper function to fetch logs with error handling and chunking
       const fetchLogs = async (config: any) => {
         try {
-          const logs = await publicClient.getLogs({
-            ...config,
+          return await fetchLogsInChunks(
+            config.address,
+            config.event,
+            config.args,
             fromBlock,
-            toBlock: currentBlock
-          })
-          return logs
+            currentBlock
+          )
         } catch (err) {
           console.warn(`Failed to fetch logs:`, err)
           return []
@@ -817,8 +884,9 @@ export function useTransactionHistory() {
         console.error('Error fetching mint events:', err)
       }
 
-      // 4. Get NFT sales
+      // 4. Get NFT sales and purchases
       try {
+        // Get SaleSettled events
         const saleEvents = await fetchLogs({
           address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
           event: {
@@ -827,6 +895,22 @@ export function useTransactionHistory() {
             inputs: [
               { name: 'tokenId', type: 'uint256', indexed: true },
               { name: 'salePrice', type: 'uint256', indexed: false },
+              { name: 'royalty', type: 'uint256', indexed: false }
+            ]
+          }
+        })
+
+        // Get NFTBought events
+        const buyEvents = await fetchLogs({
+          address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+          event: {
+            type: 'event',
+            name: 'NFTBought',
+            inputs: [
+              { name: 'tokenId', type: 'uint256', indexed: true },
+              { name: 'buyer', type: 'address', indexed: true },
+              { name: 'seller', type: 'address', indexed: true },
+              { name: 'price', type: 'uint256', indexed: false },
               { name: 'royalty', type: 'uint256', indexed: false }
             ]
           }
@@ -864,11 +948,160 @@ export function useTransactionHistory() {
             }
           }
         }
+
+        // Process NFTBought events
+        for (const buy of buyEvents) {
+          const tx = await publicClient.getTransaction({ hash: buy.transactionHash })
+          const receipt = await publicClient.getTransactionReceipt({ hash: buy.transactionHash })
+          
+          const buyArgs = (buy as any).args
+          if (buyArgs?.tokenId && (buyArgs.buyer.toLowerCase() === address.toLowerCase() || buyArgs.seller.toLowerCase() === address.toLowerCase())) {
+            allTransactions.push({
+              id: buy.transactionHash,
+              type: 'NFT_BOUGHT',
+              hash: buy.transactionHash,
+              timestamp: Number(tx.blockNumber),
+              from: buyArgs.seller,
+              to: buyArgs.buyer,
+              tokenId: buyArgs.tokenId.toString(),
+              amount: buyArgs.price.toString(),
+              token: 'STT',
+              status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+              gasUsed: receipt.gasUsed.toString(),
+              gasPrice: tx.gasPrice?.toString() || '0',
+              buyer: buyArgs.buyer,
+              seller: buyArgs.seller,
+              royaltyAmount: buyArgs.royalty.toString()
+            })
+          }
+        }
       } catch (err) {
         console.error('Error fetching sale events:', err)
       }
 
-      // 5. Get faucet claims (STT token claims)
+      // 5. Get NFT listing events
+      try {
+        const listingEvents = await fetchLogs({
+          address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+          event: {
+            type: 'event',
+            name: 'NFTListed',
+            inputs: [
+              { name: 'tokenId', type: 'uint256', indexed: true },
+              { name: 'seller', type: 'address', indexed: true },
+              { name: 'price', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            seller: address
+          }
+        })
+
+        for (const listing of listingEvents) {
+          const tx = await publicClient.getTransaction({ hash: listing.transactionHash })
+          const receipt = await publicClient.getTransactionReceipt({ hash: listing.transactionHash })
+          
+          allTransactions.push({
+            id: listing.transactionHash,
+            type: 'NFT_LISTED',
+            hash: listing.transactionHash,
+            timestamp: Number(tx.blockNumber),
+            from: address,
+            to: '0x0000000000000000000000000000000000000000',
+            tokenId: (listing as any).args?.tokenId?.toString() || '',
+            amount: (listing as any).args?.price?.toString() || '0',
+            token: 'STT',
+            status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+            gasUsed: receipt.gasUsed.toString(),
+            gasPrice: tx.gasPrice?.toString() || '0'
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching listing events:', err)
+      }
+
+      // 6. Get royalty distribution events
+      try {
+        // First, get all splitter contracts that the user might be involved in
+        // We'll need to check all splitter contracts for royalty distributions
+        const royaltyDistributionEvents = await fetchLogs({
+          event: {
+            type: 'event',
+            name: 'RoyaltyDistributed',
+            inputs: [
+              { name: 'recipient', type: 'address', indexed: true },
+              { name: 'amount', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            recipient: address
+          }
+        })
+
+        for (const event of royaltyDistributionEvents) {
+          const tx = await publicClient.getTransaction({ hash: event.transactionHash })
+          const receipt = await publicClient.getTransactionReceipt({ hash: event.transactionHash })
+          
+          allTransactions.push({
+            id: event.transactionHash,
+            type: 'ROYALTY_PAYMENT',
+            hash: event.transactionHash,
+            timestamp: Number(tx.blockNumber),
+            from: event.address, // Splitter contract address
+            to: (event as any).args?.recipient || '',
+            tokenId: '',
+            amount: (event as any).args?.amount?.toString() || '0',
+            token: 'STT',
+            status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+            gasUsed: receipt.gasUsed.toString(),
+            gasPrice: tx.gasPrice?.toString() || '0'
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching royalty distribution events:', err)
+      }
+
+      // 6.5. Get withdrawal events
+      try {
+        const withdrawalEvents = await fetchLogs({
+          event: {
+            type: 'event',
+            name: 'Withdrawal',
+            inputs: [
+              { name: 'recipient', type: 'address', indexed: true },
+              { name: 'tokenId', type: 'uint256', indexed: true },
+              { name: 'amount', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            recipient: address
+          }
+        })
+
+        for (const event of withdrawalEvents) {
+          const tx = await publicClient.getTransaction({ hash: event.transactionHash })
+          const receipt = await publicClient.getTransactionReceipt({ hash: event.transactionHash })
+          
+          allTransactions.push({
+            id: event.transactionHash,
+            type: 'WITHDRAWAL',
+            hash: event.transactionHash,
+            timestamp: Number(tx.blockNumber),
+            from: event.address, // Splitter contract address
+            to: (event as any).args?.recipient || '',
+            tokenId: (event as any).args?.tokenId?.toString() || '',
+            amount: (event as any).args?.amount?.toString() || '0',
+            token: 'STT',
+            status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+            gasUsed: receipt.gasUsed.toString(),
+            gasPrice: tx.gasPrice?.toString() || '0'
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching withdrawal events:', err)
+      }
+
+      // 7. Get faucet claims (STT token claims)
       try {
         const faucetEvents = await fetchLogs({
           address: CONTRACT_ADDRESSES.STT_TOKEN,
@@ -955,10 +1188,10 @@ export function useTransactionHistory() {
                   gasPrice: tx.gasPrice?.toString() || '0'
                 })
               }
-            } catch (codeErr) {
-              // Ignore errors when checking contract code
-              console.log('Could not check contract code for:', fromAddress)
-            }
+          } catch {
+            // Ignore errors when checking contract code
+            console.log('Could not check contract code for:', fromAddress)
+          }
           }
         }
       } catch (err) {
@@ -973,21 +1206,8 @@ export function useTransactionHistory() {
       // If no transactions found in recent blocks, try fetching from a wider range
       if (allTransactions.length === 0) {
         console.log('No transactions found in recent blocks, trying wider range...')
-        try {
-          const widerFromBlock = currentBlock > BigInt(50000) ? currentBlock - BigInt(50000) : BigInt(0)
-          console.log(`Trying wider range from block ${widerFromBlock} to ${currentBlock}`)
-          
-          // Try to fetch any transactions in the wider range
-          const widerLogs = await publicClient.getLogs({
-            fromBlock: widerFromBlock,
-            toBlock: currentBlock,
-            address: [CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT, CONTRACT_ADDRESSES.STT_TOKEN, CONTRACT_ADDRESSES.ROYALTY_ROUTER]
-          })
-          
-          console.log(`Found ${widerLogs.length} logs in wider range`)
-        } catch (widerErr) {
-          console.log('Wider range fetch also failed:', widerErr)
-        }
+        // Skip wider range fetch to avoid RPC limits
+        console.log('Skipping wider range fetch to avoid RPC limits')
       }
       
       // Set the real transactions (even if empty)
@@ -1010,6 +1230,168 @@ export function useTransactionHistory() {
     isLoading,
     error,
     refetch: fetchTransactionHistory
+  }
+}
+
+// Hook for fetching royalty distributions for a specific user
+export function useRoyaltyDistributions() {
+  const { address, isConnected } = useAccount()
+  const [royaltyDistributions, setRoyaltyDistributions] = useState<RoyaltyDistribution[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchRoyaltyDistributions = useCallback(async () => {
+    if (!isConnected || !address) {
+      setRoyaltyDistributions([])
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const currentBlock = await publicClient.getBlockNumber()
+      const maxBlocks = BigInt(500) // Further reduced to avoid RPC limits
+      const fromBlock = currentBlock > maxBlocks ? currentBlock - maxBlocks : BigInt(0)
+      
+      // Get all RoyaltyDistributed events for the user
+      const royaltyEvents = await fetchLogsInChunks(
+        [], // All addresses (empty array means all)
+        {
+          type: 'event',
+          name: 'RoyaltyDistributed',
+          inputs: [
+            { name: 'recipient', type: 'address', indexed: true },
+            { name: 'amount', type: 'uint256', indexed: false }
+          ]
+        },
+        {
+          recipient: address
+        },
+        fromBlock,
+        currentBlock
+      )
+
+      const distributions: Array<{
+        tokenId: string
+        splitterAddress: string
+        amount: string
+        timestamp: number
+        transactionHash: string
+      }> = []
+
+      for (const event of royaltyEvents) {
+        const tx = await publicClient.getTransaction({ hash: event.transactionHash })
+        
+        // Try to find which NFT this splitter belongs to
+        let tokenId = 'Unknown'
+        try {
+          // We can try to find the tokenId by checking the splitter address
+          // This might require additional contract calls or event filtering
+          tokenId = 'Unknown' // For now, we'll mark as unknown
+        } catch {
+          console.log('Could not determine tokenId for splitter:', event.address)
+        }
+
+        distributions.push({
+          tokenId,
+          splitterAddress: event.address,
+          amount: (event as any).args?.amount?.toString() || '0',
+          timestamp: Number(tx.blockNumber),
+          transactionHash: event.transactionHash
+        })
+      }
+
+      setRoyaltyDistributions(distributions)
+    } catch (err) {
+      console.error('Error fetching royalty distributions:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch royalty distributions')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [address, isConnected])
+
+  useEffect(() => {
+    fetchRoyaltyDistributions()
+  }, [fetchRoyaltyDistributions])
+
+  return {
+    royaltyDistributions,
+    isLoading,
+    error,
+    refetch: fetchRoyaltyDistributions
+  }
+}
+
+// Hook for claiming accumulated royalties from splitter contracts
+export function useRoyaltyClaiming() {
+  const { address, isConnected } = useAccount()
+  const { writeContractAsync, isPending, error } = useWriteContract()
+  const [claimableRoyalties, setClaimableRoyalties] = useState<Array<{
+    splitterAddress: string
+    amount: string
+    tokenId: string
+  }>>([])
+
+  // Check claimable royalties for user's splitter contracts
+  const checkClaimableRoyalties = useCallback(async () => {
+    if (!isConnected || !address) {
+      setClaimableRoyalties([])
+      return
+    }
+
+    try {
+      // This would need to be implemented based on how splitter contracts work
+      // For now, we'll return an empty array
+      setClaimableRoyalties([])
+    } catch (err) {
+      console.error('Error checking claimable royalties:', err)
+    }
+  }, [address, isConnected])
+
+  // Withdraw accumulated royalties from a specific splitter contract
+  const withdrawRoyalties = async (splitterAddress: string, tokenId: bigint) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: splitterAddress as `0x${string}`,
+        abi: ROYALTY_SPLITTER_ABI,
+        functionName: 'withdraw',
+        args: [tokenId],
+      })
+      return txHash
+    } catch (err) {
+      console.error('Withdraw royalties error:', err)
+      throw err
+    }
+  }
+
+  // Get creator earnings for a specific tokenId
+  const getCreatorEarnings = async (splitterAddress: string, creatorAddress: string, tokenId: bigint) => {
+    try {
+      const earnings = await publicClient.readContract({
+        address: splitterAddress as `0x${string}`,
+        abi: ROYALTY_SPLITTER_ABI,
+        functionName: 'getCreatorEarnings',
+        args: [creatorAddress as `0x${string}`, tokenId],
+      })
+      return earnings
+    } catch (err) {
+      console.error('Get creator earnings error:', err)
+      return BigInt(0)
+    }
+  }
+
+  useEffect(() => {
+    checkClaimableRoyalties()
+  }, [checkClaimableRoyalties])
+
+  return {
+    claimableRoyalties,
+    withdrawRoyalties,
+    getCreatorEarnings,
+    isLoading: isPending,
+    error,
+    refetch: checkClaimableRoyalties
   }
 }
 
@@ -1042,12 +1424,45 @@ export function useRoyaltyRouterInfo() {
 
 // Hook for Royalty Router (Marketplace) interactions
 export function useRoyaltyRouter() {
-  const { writeContract, writeContractAsync, data: hash, isPending, error } = useWriteContract()
+  const { writeContractAsync, data: hash, isPending, error } = useWriteContract()
+
+  // Approve NFT for listing
+  const approveNFT = async (tokenId: bigint) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+        abi: STREAMING_ROYALTY_NFT_ABI,
+        functionName: 'approve',
+        args: [CONTRACT_ADDRESSES.ROYALTY_ROUTER, tokenId],
+      })
+      return txHash
+    } catch (err) {
+      console.error('Approve NFT error:', err)
+      throw err
+    }
+  }
 
   // List NFT for sale
   const listNFT = async (tokenId: bigint, price: string) => {
     try {
-      const txHash = await writeContract({
+      // First, check if the router is already approved
+      const currentApproval = await publicClient.readContract({
+        address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+        abi: STREAMING_ROYALTY_NFT_ABI,
+        functionName: 'getApproved',
+        args: [tokenId],
+      })
+
+      // If not approved, approve first
+      if (currentApproval !== CONTRACT_ADDRESSES.ROYALTY_ROUTER) {
+        console.log('Approving NFT for listing...')
+        await approveNFT(tokenId)
+        // Wait a moment for the approval to be processed
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+
+      // Now list the NFT
+      const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
         abi: ROYALTY_ROUTER_ABI,
         functionName: 'listNFT',
@@ -1141,26 +1556,108 @@ export function useAllNFTs() {
   const [totalSupply, setTotalSupply] = useState<bigint>(BigInt(0))
   const [isLoading, setIsLoading] = useState(true)
 
-  const fetchNFTs = async () => {
+    const fetchNFTs = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch('/api/nfts')
-        const data = await response.json()
         
-        if (data.nfts) {
-          const formattedNFTs = data.nfts.map((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => ({
-            tokenId: BigInt(nft.tokenId),
-            owner: nft.owner,
-            tokenURI: nft.tokenURI,
-            royaltyInfo: nft.royaltyInfo ? [nft.royaltyInfo.receiver, BigInt(nft.royaltyInfo.amount)] as [string, bigint] : undefined,
-            metadata: undefined // Will be fetched separately by NFTCard component
-          }))
-          setNfts(formattedNFTs)
+        // Get total supply to know how many NFTs exist
+        const totalSupply = await publicClient.readContract({
+          address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+          abi: STREAMING_ROYALTY_NFT_ABI,
+          functionName: 'nextId',
+        })
+
+        const nftsList: Array<{ 
+          tokenId: bigint; 
+          owner: string; 
+          tokenURI: string; 
+          royaltyInfo?: [string, bigint];
+          metadata?: {
+            name: string;
+            description: string;
+            image: string;
+            attributes?: Array<{
+              trait_type: string;
+              value: string | number;
+            }>;
+          };
+        }> = []
+
+        // Check each token ID (start from 1, not 0)
+        for (let i = 1; i <= Number(totalSupply); i++) {
+          try {
+            const tokenId = BigInt(i)
+            
+            // Get basic NFT data
+            const [owner, tokenURI, royaltyInfo] = await Promise.all([
+              publicClient.readContract({
+                address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+                abi: STREAMING_ROYALTY_NFT_ABI,
+                functionName: 'ownerOf',
+                args: [tokenId],
+              }),
+              publicClient.readContract({
+                address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+                abi: STREAMING_ROYALTY_NFT_ABI,
+                functionName: 'tokenURI',
+                args: [tokenId],
+              }),
+              publicClient.readContract({
+                address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+                abi: STREAMING_ROYALTY_NFT_ABI,
+                functionName: 'royaltyInfo',
+                args: [tokenId, BigInt('1000000000000000000')], // 1 STT for calculation
+              })
+            ])
+
+            // Try to fetch metadata from IPFS, but don't fail if it's not accessible
+            let metadata: {
+              name: string;
+              description: string;
+              image: string;
+              attributes?: Array<{
+                trait_type: string;
+                value: string | number;
+              }>;
+            } = {
+              name: `NFT #${tokenId.toString()}`,
+              description: "Somnia Streaming NFT",
+              image: "https://via.placeholder.com/400x400/00ff88/000000?text=Streaming+NFT"
+            }
+            
+            try {
+              if (tokenURI && tokenURI.startsWith('ipfs://')) {
+                const ipfsUrl = tokenURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/')
+                const response = await fetch(ipfsUrl)
+                if (response.ok) {
+                  const ipfsMetadata = await response.json()
+                  metadata = {
+                    name: ipfsMetadata.name || metadata.name,
+                    description: ipfsMetadata.description || metadata.description,
+                    image: ipfsMetadata.image || metadata.image,
+                    attributes: ipfsMetadata.attributes || []
+                  }
+                }
+              }
+            } catch (metadataErr) {
+              console.log(`Could not fetch metadata for token ${tokenId}, using defaults:`, metadataErr)
+            }
+
+            nftsList.push({
+              tokenId,
+              owner,
+              tokenURI,
+              royaltyInfo: [royaltyInfo[0], royaltyInfo[1]],
+              metadata
+            })
+          } catch (err) {
+            // Token doesn't exist or other error, continue
+            console.log(`Token ${i} not found or error:`, err)
+          }
         }
-        
-        if (data.totalSupply) {
-          setTotalSupply(BigInt(data.totalSupply))
-        }
+
+        setNfts(nftsList)
+        setTotalSupply(totalSupply)
       } catch (error) {
         console.error('Error fetching NFTs:', error)
       } finally {
@@ -1197,27 +1694,27 @@ export function useNFTsByOwner(ownerAddress?: string) {
       return
     }
 
-    try {
-      setIsLoading(true)
-      const response = await fetch('/api/nfts')
-      const data = await response.json()
-      
-      if (data.nfts) {
-        const filteredNFTs = data.nfts
-          .filter((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => nft.owner.toLowerCase() === ownerAddress.toLowerCase())
-          .map((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => ({
-            tokenId: BigInt(nft.tokenId),
-            owner: nft.owner,
-            tokenURI: nft.tokenURI,
-            royaltyInfo: nft.royaltyInfo ? [nft.royaltyInfo.receiver, BigInt(nft.royaltyInfo.amount)] as [string, bigint] : undefined,
-          }))
-        setOwnedNFTs(filteredNFTs)
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/nfts')
+        const data = await response.json()
+        
+        if (data.nfts) {
+          const filteredNFTs = data.nfts
+            .filter((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => nft.owner.toLowerCase() === ownerAddress.toLowerCase())
+            .map((nft: { tokenId: string; owner: string; tokenURI: string; royaltyInfo?: { receiver: string; amount: string } }) => ({
+              tokenId: BigInt(nft.tokenId),
+              owner: nft.owner,
+              tokenURI: nft.tokenURI,
+              royaltyInfo: nft.royaltyInfo ? [nft.royaltyInfo.receiver, BigInt(nft.royaltyInfo.amount)] as [string, bigint] : undefined,
+            }))
+          setOwnedNFTs(filteredNFTs)
+        }
+      } catch (error) {
+        console.error('Error fetching owned NFTs:', error)
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Error fetching owned NFTs:', error)
-    } finally {
-      setIsLoading(false)
-    }
   }, [ownerAddress])
 
   useEffect(() => {

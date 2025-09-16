@@ -156,6 +156,9 @@ export function MintNftForm() {
       
       toast.success("NFT minted successfully and listed for sale!", { id: "mint" })
       
+      // Trigger refresh in other components
+      window.dispatchEvent(new CustomEvent('nftMinted'))
+      
       // Reset form
       setName("")
       setDesc("")
@@ -419,7 +422,7 @@ export function MintNftForm() {
                     required
                   />
                       {s.address && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs font-mono">
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs ">
                           {isValidAddress(s.address) ? (
                             <span className="text-green-400">✓</span>
                           ) : (

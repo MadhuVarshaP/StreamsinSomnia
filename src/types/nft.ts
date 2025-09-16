@@ -7,7 +7,7 @@ export interface NFTData {
 
 export interface TransactionHistory {
   id: string
-  type: 'NFT_MINT' | 'NFT_TRANSFER' | 'NFT_SALE' | 'STT_TRANSFER' | 'ROYALTY_PAYMENT'
+  type: 'NFT_MINT' | 'NFT_TRANSFER' | 'NFT_SALE' | 'NFT_LISTED' | 'NFT_BOUGHT' | 'STT_TRANSFER' | 'ROYALTY_PAYMENT' | 'WITHDRAWAL'
   hash: string
   timestamp: number
   from: string
@@ -21,4 +21,14 @@ export interface TransactionHistory {
   royaltyBps?: string
   splitterAddress?: string
   royaltyAmount?: string
+  buyer?: string
+  seller?: string
+}
+
+export interface RoyaltyDistribution {
+  tokenId: string
+  splitterAddress: string
+  amount: string
+  timestamp: number
+  transactionHash: string
 }
