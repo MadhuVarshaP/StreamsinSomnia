@@ -446,21 +446,21 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
           <div className="px-6 pb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-lime-500/10 border border-lime-500/20">
-                <div className="h-5 w-5 bg-lime-400 rounded" />
+                {/* <div className="h-5 w-5 bg-lime-400 rounded" /> */}
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Total NFTs</p>
                   <p className="text-lg font-semibold text-lime-400">0</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                <Crown className="h-5 w-5 text-cyan-400" />
+                {/* <Crown className="h-5 w-5 text-cyan-400" /> */}
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Avg. Royalty</p>
                   <p className="text-lg font-semibold text-cyan-400">0%</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                <TrendingUp className="h-5 w-5 text-orange-400" />
+                {/* <TrendingUp className="h-5 w-5 text-orange-400" /> */}
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Active Streams</p>
                   <p className="text-lg font-semibold text-orange-400">0</p>
@@ -485,9 +485,9 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
           <div className="px-6 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-lime-500/20">
+                {/* <div className="p-2 rounded-lg bg-lime-500/20">
                   <div className="h-6 w-6 bg-lime-400 rounded" />
-                </div>
+                </div> */}
                 <div>
                   <h2 className="text-2xl text-[#f5eada] font-semibold">My Streams</h2>
                   <p className="text-[#f5eada]/70">Your minted NFTs and royalty streams</p>
@@ -505,7 +505,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
           <div className="px-6 pb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-lime-500/10 border border-lime-500/20">
-                <div className="h-5 w-5 bg-lime-400 rounded" />
+                {/* <div className="h-5 w-5 bg-lime-400 rounded" /> */}
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Total NFTs</p>
                   <p className="text-lg font-semibold text-lime-400">{ownedNFTs.length}</p>
@@ -527,7 +527,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                <TrendingUp className="h-5 w-5 text-orange-400" />
+                {/* <TrendingUp className="h-5 w-5 text-orange-400" /> */}
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Total Royalty Earnings</p>
                   <p className="text-lg font-semibold text-orange-400">{parseFloat(totalRoyaltyEarnings).toFixed(2)} STT</p>
@@ -849,14 +849,14 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                  <div className="h-5 w-5 bg-yellow-400 rounded" />
+                  {/* <div className="h-5 w-5 bg-yellow-400 rounded" /> */}
                   <div>
                     <p className="text-sm text-[#f5eada]/60">Total Royalty Earnings</p>
                     <p className="text-lg font-semibold text-yellow-400">{(parseFloat(totalRoyaltyEarnings) / 1e18).toFixed(2)} STT</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <div className="h-5 w-5 bg-green-400 rounded" />
+                  {/* <div className="h-5 w-5 bg-green-400 rounded" /> */}
                   <div>
                     <p className="text-sm text-[#f5eada]/60">NFTs with Royalties</p>
                     <p className="text-lg font-semibold text-green-400">
@@ -865,7 +865,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <div className="h-5 w-5 bg-blue-400 rounded" />
+                  {/* <div className="h-5 w-5 bg-blue-400 rounded" /> */}
                   <div>
                     <p className="text-sm text-[#f5eada]/60">Avg. Royalty Rate</p>
                     <p className="text-lg font-semibold text-blue-400">
