@@ -7,6 +7,7 @@ import { useState, useEffect } from "react"
 
 export default function StreamsPage() {
   const router = useRouter()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const handleMintNew = () => {
@@ -33,7 +34,7 @@ export default function StreamsPage() {
     <AppShell>
       <MyStreams 
         onMintNew={handleMintNew}
-        refreshTrigger={refreshTrigger}
+        // refreshTrigger={refreshTrigger}
       />
     </AppShell>
   )
