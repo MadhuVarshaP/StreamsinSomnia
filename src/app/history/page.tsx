@@ -1,109 +1,160 @@
-"use client"
+"use client";
 
-import { AppShell } from "../../components/app-shell"
-import { useMemo, useState } from "react"
-import { Input } from "../../components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
-import { motion } from "framer-motion"
-import { Search, History, TrendingUp, DollarSign, Users, Calendar, ExternalLink, Copy, CheckCircle, XCircle, Clock, Loader2, RefreshCw } from "lucide-react"
-import { useTransactionHistory } from "../../hooks/use-contracts"
-import { shortenAddress, formatTransactionAmount, formatTransactionDate } from "../../lib/utils"
-import { Button } from "../../components/ui/button"
-import { Badge } from "../../components/ui/badge"
-import { useToast } from "../../hooks/use-toast"
+import { AppShell } from "../../components/app-shell";
+import { useMemo, useState } from "react";
+import { Input } from "../../components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { motion } from "framer-motion";
+import {
+  Search,
+  History,
+  TrendingUp,
+  DollarSign,
+  Users,
+  Calendar,
+  ExternalLink,
+  Copy,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
+import { usePersistentTransactionHistory } from "@/hooks/use-persistent-transaction-history";
+import {
+  shortenAddress,
+  formatTransactionAmount,
+  formatTransactionDate,
+} from "../../lib/utils";
+import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
+import { useToast } from "../../hooks/use-toast";
 
 export default function HistoryPage() {
-  const [q, setQ] = useState("")
-  const [filterType, setFilterType] = useState<string>("ALL")
-  const { transactions, isLoading, error, refetch } = useTransactionHistory()
-  const { toast } = useToast()
+  const [q, setQ] = useState("");
+  const [filterType, setFilterType] = useState<string>("ALL");
+  const { transactions, isLoading, error, refetch, allAddressesData } =
+    usePersistentTransactionHistory();
+  const { toast } = useToast();
 
   const filtered = useMemo(() => {
-    let filteredTransactions = transactions
+    let filteredTransactions = transactions;
 
     // Filter by search query
     if (q.trim()) {
-      const searchTerm = q.trim().toLowerCase()
-      filteredTransactions = filteredTransactions.filter((tx) => 
-        tx.hash.toLowerCase().includes(searchTerm) ||
-        tx.tokenId?.toLowerCase().includes(searchTerm) ||
-        tx.type.toLowerCase().includes(searchTerm) ||
-        shortenAddress(tx.from).toLowerCase().includes(searchTerm) ||
-        shortenAddress(tx.to).toLowerCase().includes(searchTerm)
-      )
+      const searchTerm = q.trim().toLowerCase();
+      filteredTransactions = filteredTransactions.filter(
+        (tx) =>
+          tx.hash.toLowerCase().includes(searchTerm) ||
+          tx.tokenId?.toLowerCase().includes(searchTerm) ||
+          tx.type.toLowerCase().includes(searchTerm) ||
+          shortenAddress(tx.from).toLowerCase().includes(searchTerm) ||
+          shortenAddress(tx.to).toLowerCase().includes(searchTerm)
+      );
     }
 
     // Filter by transaction type
     if (filterType !== "ALL") {
-      filteredTransactions = filteredTransactions.filter((tx) => tx.type === filterType)
+      filteredTransactions = filteredTransactions.filter(
+        (tx) => tx.type === filterType
+      );
     }
 
-    return filteredTransactions
-  }, [transactions, q, filterType])
+    return filteredTransactions;
+  }, [transactions, q, filterType]);
 
   const totalAmount = filtered.reduce((sum, tx) => {
-    if (tx.token === 'STT' && tx.amount !== '0') {
-      return sum + parseFloat(formatTransactionAmount(tx.amount, 18))
+    if (tx.token === "STT" && tx.amount !== "0") {
+      return sum + parseFloat(formatTransactionAmount(tx.amount, 18));
     }
-    return sum
-  }, 0)
+    return sum;
+  }, 0);
 
-  const mintCount = filtered.filter(tx => tx.type === 'NFT_MINT').length
-  const saleCount = filtered.filter(tx => tx.type === 'NFT_SALE').length
+  const mintCount = filtered.filter((tx) => tx.type === "NFT_MINT").length;
+  const saleCount = filtered.filter((tx) => tx.type === "NFT_SALE").length;
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+    navigator.clipboard.writeText(text);
     toast({
       title: "Copied!",
       description: "Transaction hash copied to clipboard",
       duration: 2000,
-    })
-  }
+    });
+  };
 
   const getTransactionTypeLabel = (type: string) => {
     switch (type) {
-      case 'NFT_MINT': return 'NFT Mint'
-      case 'NFT_TRANSFER': return 'NFT Transfer'
-      case 'NFT_SALE': return 'NFT Sale'
-      case 'NFT_LISTED': return 'NFT Listed'
-      case 'NFT_BOUGHT': return 'NFT Purchased'
-      case 'STT_TRANSFER': return 'STT Transfer'
-      case 'ROYALTY_PAYMENT': return 'Royalty Payment'
-      case 'WITHDRAWAL': return 'Earnings Withdrawn'
-      case 'CONTRACT_INTERACTION': return 'Contract Interaction'
-      default: return type
+      case "NFT_MINT":
+        return "NFT Mint";
+      case "NFT_TRANSFER":
+        return "NFT Transfer";
+      case "NFT_SALE":
+        return "NFT Sale";
+      case "NFT_LISTED":
+        return "NFT Listed";
+      case "NFT_BOUGHT":
+        return "NFT Purchased";
+      case "STT_TRANSFER":
+        return "STT Transfer";
+      case "ROYALTY_PAYMENT":
+        return "Royalty Payment";
+      case "WITHDRAWAL":
+        return "Earnings Withdrawn";
+      case "CONTRACT_INTERACTION":
+        return "Contract Interaction";
+      default:
+        return type;
     }
-  }
+  };
 
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
-      case 'NFT_MINT': return 'bg-green-500/20 text-green-400 border-green-500/30'
-      case 'NFT_TRANSFER': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-      case 'NFT_SALE': return 'bg-orange-500/20 text-orange-400 border-orange-500/30'
-      case 'NFT_LISTED': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-      case 'NFT_BOUGHT': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-      case 'STT_TRANSFER': return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-      case 'ROYALTY_PAYMENT': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-      case 'WITHDRAWAL': return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-      case 'CONTRACT_INTERACTION': return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      case "NFT_MINT":
+        return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "NFT_TRANSFER":
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      case "NFT_SALE":
+        return "bg-orange-500/20 text-orange-400 border-orange-500/30";
+      case "NFT_LISTED":
+        return "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
+      case "NFT_BOUGHT":
+        return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      case "STT_TRANSFER":
+        return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+      case "ROYALTY_PAYMENT":
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "WITHDRAWAL":
+        return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+      case "CONTRACT_INTERACTION":
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+      default:
+        return "bg-gray-500/20 text-gray-400 border-gray-500/30";
     }
-  }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'SUCCESS': return <CheckCircle className="h-4 w-4 text-green-400" />
-      case 'FAILED': return <XCircle className="h-4 w-4 text-red-400" />
-      case 'PENDING': return <Clock className="h-4 w-4 text-yellow-400" />
-      default: return <Clock className="h-4 w-4 text-gray-400" />
+      case "SUCCESS":
+        return <CheckCircle className="h-4 w-4 text-green-400" />;
+      case "FAILED":
+        return <XCircle className="h-4 w-4 text-red-400" />;
+      case "PENDING":
+        return <Clock className="h-4 w-4 text-yellow-400" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-400" />;
     }
-  }
+  };
 
   return (
     <AppShell>
       <div className="space-y-8">
         {/* Hero Section */}
-        <motion.div 
+        <motion.div
           className="relative overflow-hidden rounded-2xl border border-lime-500/20 bg-gradient-to-br from-lime-500/10 via-cyan-500/5 to-orange-500/10 p-8 backdrop-blur-xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -115,16 +166,19 @@ export default function HistoryPage() {
               <div className="p-2 rounded-lg bg-lime-500/20">
                 <History className="h-6 w-6 text-lime-400" />
               </div>
-              <h1 className="text-3xl font-bold text-[#f5eada]">Distribution History</h1>
+              <h1 className="text-3xl font-bold text-[#f5eada]">
+                Transaction History
+              </h1>
             </div>
             <p className="text-[#f5eada]/80 text-lg max-w-2xl">
-              Track all your royalty distributions, streaming payments, and NFT sales across Somnia in Streams.
+              Track all your NFT transactions, royalty payments, and STT
+              transfers across Somnia. Data is persisted per address.
             </p>
           </div>
         </motion.div>
 
         {/* Stats Cards */}
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-4 gap-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,12 +192,14 @@ export default function HistoryPage() {
                 </div>
                 <div>
                   <p className="text-sm text-[#f5eada]/70">Total STT Volume</p>
-                  <p className="text-2xl font-bold text-[#f5eada]">{totalAmount.toFixed(2)} STT</p>
+                  <p className="text-2xl font-bold text-[#f5eada]">
+                    {totalAmount.toFixed(2)} STT
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border-green-500/20 bg-gradient-to-br from-green-500/10 to-emerald-500/5 backdrop-blur-xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
@@ -152,12 +208,14 @@ export default function HistoryPage() {
                 </div>
                 <div>
                   <p className="text-sm text-[#f5eada]/70">NFT Mints</p>
-                  <p className="text-2xl font-bold text-[#f5eada]">{mintCount}</p>
+                  <p className="text-2xl font-bold text-[#f5eada]">
+                    {mintCount}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/10 to-red-500/5 backdrop-blur-xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
@@ -166,12 +224,14 @@ export default function HistoryPage() {
                 </div>
                 <div>
                   <p className="text-sm text-[#f5eada]/70">NFT Sales</p>
-                  <p className="text-2xl font-bold text-[#f5eada]">{saleCount}</p>
+                  <p className="text-2xl font-bold text-[#f5eada]">
+                    {saleCount}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border-lime-500/20 bg-gradient-to-br from-purple-500/10 to-cyan-500/5 backdrop-blur-xl">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
@@ -179,8 +239,12 @@ export default function HistoryPage() {
                   <Users className="h-5 w-5 text-lime-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-[#f5eada]/70">Total Transactions</p>
-                  <p className="text-2xl font-bold text-[#f5eada]">{filtered.length}</p>
+                  <p className="text-sm text-[#f5eada]/70">
+                    Total Transactions
+                  </p>
+                  <p className="text-2xl font-bold text-[#f5eada]">
+                    {filtered.length}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -204,7 +268,9 @@ export default function HistoryPage() {
                 <div className="p-2 rounded-lg bg-lime-500/20">
                   <History className="h-5 w-5 text-lime-400" />
                 </div>
-                <CardTitle className="text-xl font-bold text-[#f5eada]">Transaction History</CardTitle>
+                <CardTitle className="text-xl font-bold text-[#f5eada]">
+                  Transaction History
+                </CardTitle>
               </div>
               <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                 <div className="flex gap-2">
@@ -233,7 +299,9 @@ export default function HistoryPage() {
                     Sales
                   </Button>
                   <Button
-                    variant={filterType === "NFT_LISTED" ? "default" : "outline"}
+                    variant={
+                      filterType === "NFT_LISTED" ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setFilterType("NFT_LISTED")}
                     className="text-xs"
@@ -241,7 +309,9 @@ export default function HistoryPage() {
                     Listings
                   </Button>
                   <Button
-                    variant={filterType === "STT_TRANSFER" ? "default" : "outline"}
+                    variant={
+                      filterType === "STT_TRANSFER" ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setFilterType("STT_TRANSFER")}
                     className="text-xs"
@@ -249,7 +319,9 @@ export default function HistoryPage() {
                     Transfers
                   </Button>
                   <Button
-                    variant={filterType === "NFT_BOUGHT" ? "default" : "outline"}
+                    variant={
+                      filterType === "NFT_BOUGHT" ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setFilterType("NFT_BOUGHT")}
                     className="text-xs"
@@ -257,7 +329,9 @@ export default function HistoryPage() {
                     Purchases
                   </Button>
                   <Button
-                    variant={filterType === "WITHDRAWAL" ? "default" : "outline"}
+                    variant={
+                      filterType === "WITHDRAWAL" ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setFilterType("WITHDRAWAL")}
                     className="text-xs"
@@ -265,7 +339,9 @@ export default function HistoryPage() {
                     Withdrawals
                   </Button>
                   <Button
-                    variant={filterType === "ROYALTY_PAYMENT" ? "default" : "outline"}
+                    variant={
+                      filterType === "ROYALTY_PAYMENT" ? "default" : "outline"
+                    }
                     size="sm"
                     onClick={() => setFilterType("ROYALTY_PAYMENT")}
                     className="text-xs"
@@ -280,7 +356,11 @@ export default function HistoryPage() {
                   size="sm"
                   className="bg-black/40 border-lime-500/20 text-[#f5eada] hover:bg-lime-500/10 hover:border-lime-500/40"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 mr-2 ${
+                      isLoading ? "animate-spin" : ""
+                    }`}
+                  />
                   Refresh
                 </Button>
                 <div className="relative w-full md:w-80">
@@ -300,14 +380,18 @@ export default function HistoryPage() {
                 <div className="flex items-center justify-center py-12">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-8 w-8 text-lime-400 animate-spin" />
-                    <p className="text-sm text-[#f5eada]/60">Loading transaction history...</p>
+                    <p className="text-sm text-[#f5eada]/60">
+                      Loading transaction history...
+                    </p>
                   </div>
                 </div>
               ) : error ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="flex flex-col items-center gap-3">
                     <XCircle className="h-8 w-8 text-red-400" />
-                    <p className="text-sm text-[#f5eada]/60">Error loading transactions</p>
+                    <p className="text-sm text-[#f5eada]/60">
+                      Error loading transactions
+                    </p>
                     <p className="text-xs text-[#f5eada]/40">{error}</p>
                     <Button onClick={refetch} size="sm" variant="outline">
                       Retry
@@ -331,15 +415,19 @@ export default function HistoryPage() {
                     </thead>
                     <tbody>
                       {filtered.map((tx, index) => (
-                        <motion.tr 
-                          key={tx.id} 
+                        <motion.tr
+                          key={tx.id}
                           className="border-b border-white/5 hover:bg-white/5 transition-colors duration-200"
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
                         >
                           <td className="py-3 pr-4">
-                            <Badge className={`rounded-full px-3 py-1 text-xs font-medium border ${getTransactionTypeColor(tx.type)}`}>
+                            <Badge
+                              className={`rounded-full px-3 py-1 text-xs font-medium border ${getTransactionTypeColor(
+                                tx.type
+                              )}`}
+                            >
                               {getTransactionTypeLabel(tx.type)}
                             </Badge>
                           </td>
@@ -350,20 +438,28 @@ export default function HistoryPage() {
                             </div>
                           </td>
                           <td className="py-3 pr-4 text-[#f5eada]/90 font-medium">
-                            {tx.tokenId ? `#${tx.tokenId}` : '-'}
+                            {tx.tokenId ? `#${tx.tokenId}` : "-"}
                           </td>
                           <td className="py-3 pr-4 text-[#f5eada] font-medium">
-                            {tx.amount !== '0' ? (
+                            {tx.amount !== "0" ? (
                               <div>
-                                <div>{formatTransactionAmount(tx.amount, 18)} {tx.token}</div>
+                                <div>
+                                  {formatTransactionAmount(tx.amount, 18)}{" "}
+                                  {tx.token}
+                                </div>
                                 {tx.royaltyAmount && (
                                   <div className="text-xs text-yellow-400">
-                                    Royalty: {formatTransactionAmount(tx.royaltyAmount, 18)} STT
+                                    Royalty:{" "}
+                                    {formatTransactionAmount(
+                                      tx.royaltyAmount,
+                                      18
+                                    )}{" "}
+                                    STT
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              '-'
+                              "-"
                             )}
                           </td>
                           <td className="py-3 pr-4 text-[#f5eada]/90">
@@ -391,7 +487,12 @@ export default function HistoryPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => window.open(`https://explorer.somnia.network/tx/${tx.hash}`, '_blank')}
+                                onClick={() =>
+                                  window.open(
+                                    `https://shannon-explorer.somnia.network/tx/${tx.hash}`,
+                                    "_blank"
+                                  )
+                                }
                                 className="h-8 w-8 p-0"
                               >
                                 <ExternalLink className="h-3 w-3" />
@@ -403,7 +504,7 @@ export default function HistoryPage() {
                     </tbody>
                   </table>
                   {!filtered.length && !isLoading && (
-                    <motion.div 
+                    <motion.div
                       className="py-12 text-center"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -413,8 +514,12 @@ export default function HistoryPage() {
                         <div className="p-3 rounded-full bg-lime-500/20">
                           <Search className="h-6 w-6 text-lime-400" />
                         </div>
-                        <p className="text-sm text-[#f5eada]/60">No transactions found</p>
-                        <p className="text-xs text-[#f5eada]/40">Try adjusting your search terms or filters</p>
+                        <p className="text-sm text-[#f5eada]/60">
+                          No transactions found
+                        </p>
+                        <p className="text-xs text-[#f5eada]/40">
+                          Try adjusting your search terms or filters
+                        </p>
                       </div>
                     </motion.div>
                   )}
@@ -425,5 +530,5 @@ export default function HistoryPage() {
         </motion.div>
       </div>
     </AppShell>
-  )
+  );
 }
