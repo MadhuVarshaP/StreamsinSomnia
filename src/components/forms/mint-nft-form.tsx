@@ -102,7 +102,7 @@ export function MintNftForm() {
       const metadata = {
         name: name,
         description: desc,
-        image: imageUrl || "https://via.placeholder.com/400x400/00ff88/000000?text=No+Image",
+        image: imageUrl || "/placeholder.jpg",
         attributes: [
           {
             trait_type: "Royalty Rate",

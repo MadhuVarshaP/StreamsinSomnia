@@ -4,7 +4,6 @@ const nextConfig: NextConfig = {
   /* config options here */
   images: {
     domains: [
-      'via.placeholder.com',
       'gateway.pinata.cloud',
       'ipfs.io',
       'cloudflare-ipfs.com',
@@ -36,12 +35,6 @@ const nextConfig: NextConfig = {
         hostname: 'dweb.link',
         port: '',
         pathname: '/ipfs/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'via.placeholder.com',
-        port: '',
-        pathname: '/**',
       },
       {
         protocol: 'https',

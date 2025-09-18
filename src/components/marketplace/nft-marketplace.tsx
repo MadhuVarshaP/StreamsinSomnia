@@ -19,13 +19,14 @@ interface NFTData {
   owner: string
   tokenURI: string
   price?: string
+  name?: string
 }
 
 export function NFTMarketplace() {
   const { address, isConnected } = useAccount()
   const { buyNFT, isPending: isBuying, isConfirmed: isBuyConfirmed, hash: buyHash, contractAddress } = useRoyaltyRouter()
   const { nftContract, tokenContract } = useRoyaltyRouterInfo()
-  const { tokenIds, listings, refetch: refetchListings } = useActiveListings()
+  const { tokenIds, listings, refetch: refetchListings, isLoading: isLoadingListings } = useActiveListings()
   const { } = useStreamingRoyaltyNFT()
   const { allNFTs, isLoading: isLoadingNFTs, refetch: refetchNFTs } = useAllNFTs()
   const { approveSTT, balance: sttBalance, useSTTAllowance, refetchBalance } = useSTTToken()
@@ -52,6 +53,22 @@ export function NFTMarketplace() {
     active: listings[index]?.active || false
   })).filter(listing => listing.active)
 
+  // Debug logging
+  console.log('Marketplace Debug:', {
+    tokenIds: tokenIds?.map(id => id.toString()),
+    listings: listings?.map((listing, index) => ({
+      index,
+      seller: listing?.seller,
+      price: listing?.price?.toString(),
+      active: listing?.active
+    })),
+    activeListings: activeListings.map(listing => ({
+      tokenId: listing.tokenId.toString(),
+      price: listing.price,
+      active: listing.active
+    }))
+  })
+
   // Create a map of listed NFTs for quick lookup
   const listedNFTsMap = new Map(activeListings.map(listing => [listing.tokenId.toString(), listing]))
 
@@ -76,6 +93,43 @@ export function NFTMarketplace() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Listen for NFT listing and purchase events to refresh data
+  useEffect(() => {
+    const handleNFTListed = () => {
+      console.log('NFT Listed event received, refreshing marketplace data...')
+      // Refresh marketplace data when an NFT is listed with multiple attempts
+      const refreshData = async () => {
+        console.log('Refreshing marketplace data after listing...')
+        await refetchNFTs()
+        await refetchListings()
+      }
+      
+      // Try multiple times with increasing delays
+      setTimeout(refreshData, 2000)
+      setTimeout(refreshData, 5000)
+      setTimeout(refreshData, 10000)
+    }
+
+    const handleNFTPurchased = () => {
+      console.log('NFT Purchased event received, refreshing marketplace data...')
+      // Refresh marketplace data when an NFT is purchased
+      setTimeout(() => {
+        console.log('Refreshing marketplace data after purchase...')
+        refetchNFTs()
+        refetchListings()
+      }, 3000) // Increased delay to allow blockchain to settle
+    }
+
+    // Listen for custom events from My Streams and marketplace
+    window.addEventListener('nftListed', handleNFTListed)
+    window.addEventListener('nftPurchased', handleNFTPurchased)
+
+    return () => {
+      window.removeEventListener('nftListed', handleNFTListed)
+      window.removeEventListener('nftPurchased', handleNFTPurchased)
+    }
+  }, [refetchNFTs, refetchListings])
 
   // Show verification popup when purchase completes
   useEffect(() => {
@@ -147,8 +201,10 @@ export function NFTMarketplace() {
         refetchBalance()
         refetchNFTs()
         refetchListings()
-        // Trigger a page refresh to update ownership in My Streams
-        window.location.reload()
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new CustomEvent('nftPurchased', { 
+          detail: { tokenId: tokenId.toString(), price } 
+        }))
       }, 2000)
       
     } catch (error) {
@@ -243,7 +299,7 @@ export function NFTMarketplace() {
         transition={{ duration: 0.6, delay: 0.2 }}
         className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-4 md:px-8 max-w-7xl mx-auto"
       >
-        {isLoadingNFTs ? (
+        {(isLoadingNFTs || isLoadingListings) ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="bg-black/40 border-2 border-lime-500/30 backdrop-blur-xl text-[#f5eada] shadow-2xl h-[520px]">
               <CardContent className="p-0 h-full flex flex-col">
@@ -281,7 +337,8 @@ export function NFTMarketplace() {
                 tokenId,
                 owner: nft.seller,
                 tokenURI: nft.tokenURI,
-                price
+                price,
+                name: nft.metadata?.name || `NFT #${tokenId.toString()}`
               })}
             />
           ))
@@ -298,7 +355,7 @@ export function NFTMarketplace() {
             exit={{ opacity: 0, scale: 0.95 }}
             className="bg-black/80 border-2 border-lime-500/30 backdrop-blur-xl rounded-2xl p-6 w-full max-w-md text-[#f5eada]"
           >
-            <h3 className="text-xl font-semibold mb-4">Purchase NFT #{selectedNFT.tokenId.toString()}</h3>
+            <h3 className="text-xl font-semibold mb-4">Purchase {selectedNFT.name || `NFT #${selectedNFT.tokenId.toString()}`}</h3>
             
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-black/20 border border-lime-500/10">

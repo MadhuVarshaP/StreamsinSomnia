@@ -1366,7 +1366,7 @@ export function useRoyaltyClaiming() {
   }
 
   // Get creator earnings for a specific tokenId
-  const getCreatorEarnings = async (splitterAddress: string, creatorAddress: string, tokenId: bigint) => {
+  const getCreatorEarnings = useCallback(async (splitterAddress: string, creatorAddress: string, tokenId: bigint) => {
     try {
       const earnings = await publicClient.readContract({
         address: splitterAddress as `0x${string}`,
@@ -1379,7 +1379,7 @@ export function useRoyaltyClaiming() {
       console.error('Get creator earnings error:', err)
       return BigInt(0)
     }
-  }
+  }, [])
 
   useEffect(() => {
     checkClaimableRoyalties()
@@ -1507,16 +1507,36 @@ export function useRoyaltyRouter() {
 
 // Hook for getting active listings from the marketplace
 export function useActiveListings() {
-  const { data: listingsData, refetch: refetchListings } = useReadContract({
+  const { data: listingsData, refetch: refetchListings, isLoading, error } = useReadContract({
     address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
     abi: ROYALTY_ROUTER_ABI,
     functionName: 'getActiveListings',
+    query: {
+      refetchInterval: 5000, // Refetch every 5 seconds
+      refetchOnWindowFocus: true,
+    }
+  })
+
+  // Debug logging
+  console.log('useActiveListings Debug:', {
+    listingsData,
+    tokenIds: listingsData?.[0]?.map(id => id.toString()),
+    listings: listingsData?.[1]?.map((listing, index) => ({
+      index,
+      seller: listing?.seller,
+      price: listing?.price?.toString(),
+      active: listing?.active
+    })),
+    isLoading,
+    error
   })
 
   return {
     tokenIds: listingsData?.[0] || [],
     listings: listingsData?.[1] || [],
     refetch: refetchListings,
+    isLoading,
+    error,
   }
 }
 
@@ -1622,7 +1642,7 @@ export function useAllNFTs() {
             } = {
               name: `NFT #${tokenId.toString()}`,
               description: "Somnia Streaming NFT",
-              image: "https://via.placeholder.com/400x400/00ff88/000000?text=Streaming+NFT"
+              image: "/placeholder.jpg"
             }
             
             try {
@@ -1634,7 +1654,7 @@ export function useAllNFTs() {
                   metadata = {
                     name: ipfsMetadata.name || metadata.name,
                     description: ipfsMetadata.description || metadata.description,
-                    image: ipfsMetadata.image || metadata.image,
+                    image: ipfsMetadata.image?.includes('via.placeholder.com') ? "/placeholder.jpg" : (ipfsMetadata.image || metadata.image),
                     attributes: ipfsMetadata.attributes || []
                   }
                 }

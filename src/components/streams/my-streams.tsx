@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useAccount } from "wagmi"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -66,7 +66,9 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
     description?: string;
     imageUrl?: string;
     splitterAddress?: string;
+    isListed?: boolean; // Track if NFT is currently listed for sale
   }>>([])
+  const ownedNFTsRef = useRef(ownedNFTs)
   const [isLoading, setIsLoading] = useState(true)
   const [totalRoyaltyEarnings, setTotalRoyaltyEarnings] = useState("0")
 
@@ -105,6 +107,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
         description?: string;
         imageUrl?: string;
         splitterAddress?: string;
+        isListed?: boolean; // Track if NFT is currently listed for sale
       }> = []
 
       let totalEarnings = BigInt(0)
@@ -124,6 +127,33 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
 
           // If user owns this NFT
           if (owner.toLowerCase() === address.toLowerCase()) {
+            // Check if this NFT is currently listed for sale
+            let isListed = false
+            try {
+              const listing = await publicClient.readContract({
+                address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+                abi: [
+                  {
+                    type: 'function',
+                    name: 'listings',
+                    inputs: [{ name: 'tokenId', type: 'uint256' }],
+                    outputs: [
+                      { name: 'seller', type: 'address' },
+                      { name: 'price', type: 'uint256' },
+                      { name: 'active', type: 'bool' }
+                    ],
+                    stateMutability: 'view'
+                  }
+                ],
+                functionName: 'listings',
+                args: [tokenId],
+              })
+              isListed = listing[2] // active field
+            } catch {
+              // NFT is not listed
+              isListed = false
+            }
+
             // Get basic NFT data
             const [tokenURI, royaltyInfo, splitterAddress] = await Promise.all([
               publicClient.readContract({
@@ -178,25 +208,33 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
             // Try to fetch metadata from IPFS, but don't fail if it's not accessible
             let name = `NFT #${tokenId.toString()}`
             let description = "Somnia Streaming NFT"
-            let imageUrl = "https://via.placeholder.com/400x400/00ff88/000000?text=Streaming+NFT"
+            let imageUrl = "/placeholder.jpg"
             
             try {
               if (tokenURI && tokenURI.startsWith('ipfs://')) {
                 const ipfsUrl = tokenURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/')
+                console.log(`Fetching metadata for NFT #${tokenId.toString()}:`, { tokenURI, ipfsUrl })
                 const response = await fetch(ipfsUrl)
                 if (response.ok) {
                   const metadata = await response.json()
+                  console.log(`Metadata for NFT #${tokenId.toString()}:`, metadata)
                   name = metadata.name || name
                   description = metadata.description || description
                   // Handle IPFS image URLs by converting them to gateway URLs
                   if (metadata.image) {
-                    if (metadata.image.startsWith('ipfs://')) {
+                    if (metadata.image.includes('via.placeholder.com')) {
+                      imageUrl = "/placeholder.jpg"
+                    } else if (metadata.image.startsWith('ipfs://')) {
                       imageUrl = metadata.image.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/')
                     } else {
                       imageUrl = metadata.image
                     }
                   }
+                } else {
+                  console.log(`Failed to fetch metadata for NFT #${tokenId.toString()}:`, response.status, response.statusText)
                 }
+              } else {
+                console.log(`No IPFS tokenURI for NFT #${tokenId.toString()}:`, tokenURI)
               }
             } catch (metadataErr) {
               console.log(`Could not fetch metadata for token ${tokenId}, using defaults:`, metadataErr)
@@ -273,7 +311,8 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
               name,
               description,
               imageUrl,
-              splitterAddress
+              splitterAddress,
+              isListed
             })
 
             totalEarnings += BigInt(royaltyEarnings)
@@ -285,6 +324,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
       }
 
       setOwnedNFTs(ownedNFTsList)
+      ownedNFTsRef.current = ownedNFTsList
       setTotalRoyaltyEarnings(totalEarnings.toString())
     } catch (error) {
       console.error('Error fetching owned NFTs:', error)
@@ -292,6 +332,25 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
       setIsLoading(false)
     }
   }, [address, isConnected])
+
+  // Listen for NFT purchase events to refresh data
+  useEffect(() => {
+    const handleNFTPurchase = () => {
+      // Refresh owned NFTs data when an NFT is purchased
+      setTimeout(() => {
+        fetchOwnedNFTsOnChain()
+      }, 2000)
+    }
+
+    // Listen for custom events from marketplace
+    window.addEventListener('nftPurchased', handleNFTPurchase)
+    window.addEventListener('nftMinted', handleNFTPurchase)
+
+    return () => {
+      window.removeEventListener('nftPurchased', handleNFTPurchase)
+      window.removeEventListener('nftMinted', handleNFTPurchase)
+    }
+  }, [fetchOwnedNFTsOnChain])
 
   useEffect(() => {
     fetchOwnedNFTsOnChain()
@@ -314,6 +373,15 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
         description: `NFT #${tokenIdStr} has been listed for ${originalPrice} STT with original royalty share`,
         duration: 5000,
       })
+      
+      // Refresh data after successful listing
+      setTimeout(() => {
+        fetchOwnedNFTsOnChain()
+        // Dispatch event to notify marketplace to refresh
+        window.dispatchEvent(new CustomEvent('nftListed', { 
+          detail: { tokenId: tokenIdStr, price: originalPrice } 
+        }))
+      }, 2000)
     } catch (error) {
       console.error('List NFT error:', error)
       toast({
@@ -337,7 +405,8 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
 
     const earningsMap = new Map<string, string>()
     
-    for (const nft of ownedNFTs) {
+    // Use ref to get current ownedNFTs without causing dependency issues
+    for (const nft of ownedNFTsRef.current) {
       if (nft.isMintedByUser && nft.splitterAddress) {
         try {
           const earnings = await getCreatorEarnings(nft.splitterAddress, address, nft.tokenId)
@@ -350,7 +419,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
     }
     
     setCreatorEarnings(earningsMap)
-  }, [address, isConnected, ownedNFTs, getCreatorEarnings])
+  }, [address, isConnected, getCreatorEarnings])
 
   // Handle withdrawal of creator earnings
   const handleWithdrawEarnings = async (tokenId: bigint, splitterAddress: string) => {
@@ -393,13 +462,15 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
     fetchCreatorEarnings()
   }, [fetchCreatorEarnings])
 
-  // Filter and sort NFTs
+  // Filter and sort NFTs - only show NFTs that are NOT listed for sale
   const filteredNFTs = ownedNFTs
     .filter(nft => 
-      nft.tokenId.toString().includes(searchTerm) ||
+      // Only show NFTs that are not currently listed for sale
+      !nft.isListed &&
+      (nft.tokenId.toString().includes(searchTerm) ||
       (nft.name && nft.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (nft.description && nft.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      nft.tokenURI.toLowerCase().includes(searchTerm.toLowerCase())
+      nft.tokenURI.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .sort((a, b) => {
       switch (sortBy) {
@@ -530,7 +601,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                 {/* <TrendingUp className="h-5 w-5 text-orange-400" /> */}
                 <div>
                   <p className="text-sm text-[#f5eada]/60">Total Royalty Earnings</p>
-                  <p className="text-lg font-semibold text-orange-400">{parseFloat(totalRoyaltyEarnings).toFixed(2)} STT</p>
+                  <p className="text-lg font-semibold text-orange-400">{(parseFloat(totalRoyaltyEarnings) / 1e18).toFixed(2)} STT</p>
                 </div>
               </div>
             </div>
@@ -654,14 +725,15 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                   <div className="flex flex-col h-full p-0">
                     <div className="relative h-64 w-full overflow-hidden bg-gradient-to-br from-slate-800/80 to-black/90 border-b border-lime-500/20">
                       <Image 
-                        src={nft.imageUrl || "https://via.placeholder.com/400x400/00ff88/000000?text=Streaming+NFT"} 
+                        src={nft.imageUrl?.includes('via.placeholder.com') ? "/placeholder.jpg" : (nft.imageUrl || "/placeholder.jpg")} 
                         alt={nft.name || `NFT #${nft.tokenId.toString()}`}
                         width={400}
                         height={400}
                         className="w-full h-full object-cover"
                         onError={(e) => {
+                          console.log(`Image failed to load for NFT #${nft.tokenId.toString()}:`, nft.imageUrl)
                           // Fallback to placeholder image if image fails to load
-                          e.currentTarget.src = "https://via.placeholder.com/400x400/00ff88/000000?text=Streaming+NFT"
+                          e.currentTarget.src = "/placeholder.jpg"
                         }}
                       />
                       <div className="absolute top-3 left-3 rounded-full border border-green-400/40 bg-gradient-to-r from-green-500/20 to-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-green-300 backdrop-blur-sm shadow-lg shadow-green-500/20">
@@ -694,17 +766,17 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                           <div className="px-3 py-2 bg-lime-500/15 border border-lime-500/30 rounded-lg text-xs font-medium">
                             <span className="text-[#f5eada]/70">Rate:</span>
                             <span className="text-lime-400 ml-1 font-semibold">
-                              {(Number(nft.royaltyInfo[1]) / 10000).toFixed(1)}%
+                            {((Number(nft.royaltyInfo[1]) / 10000) * 100).toFixed(0)}%
                             </span>
                           </div>
-                          {nft.royaltyEarnings && parseFloat(nft.royaltyEarnings) > 0 && (
+                          {/* {nft.royaltyEarnings && parseFloat(nft.royaltyEarnings) > 0 && (
                             <div className="px-3 py-2 bg-yellow-500/15 border border-yellow-500/30 rounded-lg text-xs font-medium">
                               <span className="text-[#f5eada]/70">Earnings:</span>
                               <span className="text-yellow-400 ml-1 font-semibold">
                                 {parseFloat(nft.royaltyEarnings).toFixed(2)} STT
                               </span>
                             </div>
-                          )}
+                          )} */}
                         </div>
                       )}
 
@@ -772,7 +844,9 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                             <Plus className="h-6 w-6 text-purple-400" />
                           </div>
                           <div>
-                            <h4 className="font-semibold text-purple-400">NFT #{nft.tokenId.toString()}</h4>
+                            <h4 className="font-semibold text-purple-400">
+                              {nft.name || `NFT #${nft.tokenId.toString()}`}
+                            </h4>
                             <p className="text-sm text-[#f5eada]/60">
                               Royalty Rate: {nft.royaltyInfo ? `${(Number(nft.royaltyInfo[1]) / 10000).toFixed(1)}%` : '0%'}
                             </p>
@@ -894,7 +968,9 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                             <Crown className="h-6 w-6 text-yellow-400" />
                           </div>
                           <div>
-                            <h4 className="font-semibold text-yellow-400">NFT #{nft.tokenId.toString()}</h4>
+                            <h4 className="font-semibold text-yellow-400">
+                              {nft.name || `NFT #${nft.tokenId.toString()}`}
+                            </h4>
                             <p className="text-sm text-[#f5eada]/60">
                               Royalty Rate: {nft.royaltyInfo ? `${(Number(nft.royaltyInfo[1]) / 10000).toFixed(1)}%` : '0%'}
                             </p>
