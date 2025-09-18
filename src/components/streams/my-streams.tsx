@@ -294,8 +294,14 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
               }
               
               royaltyEarnings = totalEarnings.toString()
-              // Convert the latest sale price to STT (assuming 18 decimals)
-              originalListingPrice = (Number(latestSalePrice) / 1e18).toFixed(2)
+              // For reselling, use the latest sale price as the suggested price
+              // This will be the price the user can choose to list at
+              if (latestSalePrice && latestSalePrice > 0) {
+                originalListingPrice = (Number(latestSalePrice) / 1e18).toFixed(2)
+              } else {
+                // Fallback: use a default price if no sale history found
+                originalListingPrice = "1" // Default 0.1 STT
+              }
             } catch (earningsErr) {
               console.log(`Could not calculate earnings for token ${tokenId}:`, earningsErr)
             }
@@ -362,6 +368,13 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
   // Handle listing NFT for sale using original minting price
   const handleListNFT = async (tokenId: bigint, originalPrice: string) => {
     const tokenIdStr = tokenId.toString()
+    
+    console.log('Listing NFT:', {
+      tokenId: tokenIdStr,
+      originalPrice,
+      priceType: typeof originalPrice,
+      priceValue: originalPrice
+    })
     
     try {
       // Add this NFT to the listing set
@@ -794,11 +807,13 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
                         {/* Sell NFT Button */}
                         <Button
                           onClick={() => {
-                            if (nft.originalListingPrice) {
-                              handleListNFT(nft.tokenId, nft.originalListingPrice)
-                            }
+                            // Use original price if available, otherwise use default
+                            const priceToUse = nft.originalListingPrice && parseFloat(nft.originalListingPrice) > 0 
+                              ? nft.originalListingPrice 
+                              : "0.1" // Default fallback price
+                            handleListNFT(nft.tokenId, priceToUse)
                           }}
-                          disabled={listingNFTs.has(nft.tokenId.toString()) || !nft.originalListingPrice}
+                          disabled={listingNFTs.has(nft.tokenId.toString())}
                           className="w-full bg-gradient-to-r from-cyan-500/25 to-blue-500/20 border-2 border-cyan-500/50 text-[#f5eada] py-3 text-lg font-semibold hover:from-cyan-500/35 hover:to-blue-500/30 hover:border-cyan-400/70 ring-1 ring-inset ring-cyan-400/30 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {listingNFTs.has(nft.tokenId.toString()) ? 'Listing...' : 'Sell NFT'}
@@ -1040,3 +1055,4 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
     </div>
   )
 }
+

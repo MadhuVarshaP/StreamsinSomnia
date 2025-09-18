@@ -20,6 +20,7 @@ interface NFTData {
   tokenURI: string
   price?: string
   name?: string
+  royaltyInfo?: [string, bigint] // [receiver, royaltyAmount]
 }
 
 export function NFTMarketplace() {
@@ -60,6 +61,7 @@ export function NFTMarketplace() {
       index,
       seller: listing?.seller,
       price: listing?.price?.toString(),
+      priceInEther: listing?.price ? (Number(listing.price) / 1e18).toFixed(2) : '1',
       active: listing?.active
     })),
     activeListings: activeListings.map(listing => ({
@@ -338,7 +340,8 @@ export function NFTMarketplace() {
                 owner: nft.seller,
                 tokenURI: nft.tokenURI,
                 price,
-                name: nft.metadata?.name || `NFT #${tokenId.toString()}`
+                name: nft.metadata?.name || `NFT #${tokenId.toString()}`,
+                royaltyInfo: nft.royaltyInfo
               })}
             />
           ))
@@ -372,12 +375,12 @@ export function NFTMarketplace() {
                     <span className="text-lime-400">{selectedNFT.price} STT</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#f5eada]/80">Royalty (10%):</span>
-                    <span className="text-cyan-400">{(parseFloat(selectedNFT.price || '0') * 0.1).toFixed(2)} STT</span>
+                    <span className="text-[#f5eada]/80">Royalty ({selectedNFT.royaltyInfo ? ((Number(selectedNFT.royaltyInfo[1]) / 1e18) * 100).toFixed(1) : '0'}%):</span>
+                    <span className="text-cyan-400">{selectedNFT.royaltyInfo ? (parseFloat(selectedNFT.price || '0') * (Number(selectedNFT.royaltyInfo[1]) / 1e18)).toFixed(2) : '0.00'} STT</span>
                   </div>
                   <div className="flex justify-between border-t border-lime-500/20 pt-1">
                     <span className="text-[#f5eada]/80">Seller Receives:</span>
-                    <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') * 0.9).toFixed(2)} STT</span>
+                    <span className="text-orange-400">{(parseFloat(selectedNFT.price || '0') - (selectedNFT.royaltyInfo ? parseFloat(selectedNFT.price || '0') * (Number(selectedNFT.royaltyInfo[1]) / 1e18) : 0)).toFixed(2)} STT</span>
                   </div>
                 </div>
                 <div className="mt-3 p-2 rounded bg-lime-500/10 border border-lime-500/20">

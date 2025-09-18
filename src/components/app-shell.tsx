@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/mint", label: "Mint NFT" },
   { href: "/streams", label: "My Streams" },
+  { href: "/royalty-dashboard", label: "Royalty Dashboard" },
   { href: "/history", label: "History" },
 ]
 

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react"
 import { Input } from "../../components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
 import { motion } from "framer-motion"
-import { Search, History, TrendingUp, DollarSign, Users, Calendar, ExternalLink, Copy, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react"
+import { Search, History, TrendingUp, DollarSign, Users, Calendar, ExternalLink, Copy, CheckCircle, XCircle, Clock, Loader2, RefreshCw } from "lucide-react"
 import { useTransactionHistory } from "../../hooks/use-contracts"
 import { shortenAddress, formatTransactionAmount, formatTransactionDate } from "../../lib/utils"
 import { Button } from "../../components/ui/button"
@@ -273,6 +273,16 @@ export default function HistoryPage() {
                     Royalties
                   </Button>
                 </div>
+                <Button
+                  onClick={refetch}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  className="bg-black/40 border-lime-500/20 text-[#f5eada] hover:bg-lime-500/10 hover:border-lime-500/40"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
                 <div className="relative w-full md:w-80">
                   <Input
                     placeholder="Search transactions..."

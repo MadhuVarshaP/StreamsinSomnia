@@ -32,3 +32,23 @@ export interface RoyaltyDistribution {
   timestamp: number
   transactionHash: string
 }
+
+export interface RoyaltyRecord {
+  nftName: string
+  amount: bigint
+  timestamp: bigint
+}
+
+export interface RecipientDashboard {
+  totalEarnings: bigint
+  history: RoyaltyRecord[]
+  historyCount: number
+}
+
+export interface NFTEarnings {
+  nftName: string
+  tokenId: bigint
+  splitterAddress: string
+  totalEarnings: bigint
+  sharePercentage: number
+}

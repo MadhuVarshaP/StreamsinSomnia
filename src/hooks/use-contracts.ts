@@ -13,8 +13,7 @@ import {
   ROYALTY_ROUTER_ABI,
   STT_TOKEN_ABI
 } from '@/lib/contracts'
-import { RoyaltyDistribution } from '@/types/nft'
-import { TransactionHistory } from '@/types/nft'
+import { RoyaltyDistribution, RecipientDashboard, RoyaltyRecord, TransactionHistory, NFTEarnings } from '@/types/nft'
 
 // Shared public client for awaiting receipts & decoding logs
 const publicClient = createPublicClient({
@@ -694,7 +693,7 @@ export function useTransactionHistory() {
     try {
       // Get current block number and fetch more blocks for better coverage
       const currentBlock = await publicClient.getBlockNumber()
-      const maxBlocks = BigInt(500) // Further reduced to avoid RPC limits
+      const maxBlocks = BigInt(2000) // Increased to get more historical data
       const fromBlock = currentBlock > maxBlocks ? currentBlock - maxBlocks : BigInt(0)
       
       console.log(`Fetching transaction history from block ${fromBlock} to ${currentBlock} for address ${address}`)
@@ -840,7 +839,97 @@ export function useTransactionHistory() {
         console.error('Error fetching STT transfers:', err)
       }
 
-      // 3. Get NFT minting events
+      // 3. Get NFT sales and royalty payments from RoyaltyRouter
+      try {
+        // Get NFTBought events
+        const nftBoughtEvents = await fetchLogs({
+          address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+          event: {
+            type: 'event',
+            name: 'NFTBought',
+            inputs: [
+              { name: 'tokenId', type: 'uint256', indexed: true },
+              { name: 'buyer', type: 'address', indexed: true },
+              { name: 'seller', type: 'address', indexed: true },
+              { name: 'salePrice', type: 'uint256', indexed: false },
+              { name: 'royalty', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            buyer: address
+          }
+        })
+
+        // Get NFTBought events where user is seller
+        const nftSoldEvents = await fetchLogs({
+          address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
+          event: {
+            type: 'event',
+            name: 'NFTBought',
+            inputs: [
+              { name: 'tokenId', type: 'uint256', indexed: true },
+              { name: 'buyer', type: 'address', indexed: true },
+              { name: 'seller', type: 'address', indexed: true },
+              { name: 'salePrice', type: 'uint256', indexed: false },
+              { name: 'royalty', type: 'uint256', indexed: false }
+            ]
+          },
+          args: {
+            seller: address
+          }
+        })
+
+        const allSaleEvents = [...nftBoughtEvents, ...nftSoldEvents]
+
+        for (const sale of allSaleEvents) {
+          const tx = await publicClient.getTransaction({ hash: sale.transactionHash })
+          const receipt = await publicClient.getTransactionReceipt({ hash: sale.transactionHash })
+          const args = (sale as any).args
+          
+          const isBuyer = args?.buyer?.toLowerCase() === address?.toLowerCase()
+          const isSeller = args?.seller?.toLowerCase() === address?.toLowerCase()
+          
+          if (isBuyer) {
+            allTransactions.push({
+              id: sale.transactionHash,
+              type: 'NFT_BOUGHT',
+              hash: sale.transactionHash,
+              timestamp: Number(tx.blockNumber),
+              from: args?.seller || '',
+              to: args?.buyer || '',
+              tokenId: args?.tokenId?.toString() || '',
+              amount: args?.salePrice?.toString() || '0',
+              token: 'STT',
+              status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+              gasUsed: receipt.gasUsed.toString(),
+              gasPrice: tx.gasPrice?.toString() || '0',
+              royaltyAmount: args?.royalty?.toString() || '0'
+            })
+          }
+          
+          if (isSeller) {
+            allTransactions.push({
+              id: sale.transactionHash,
+              type: 'NFT_SALE',
+              hash: sale.transactionHash,
+              timestamp: Number(tx.blockNumber),
+              from: args?.seller || '',
+              to: args?.buyer || '',
+              tokenId: args?.tokenId?.toString() || '',
+              amount: args?.salePrice?.toString() || '0',
+              token: 'STT',
+              status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+              gasUsed: receipt.gasUsed.toString(),
+              gasPrice: tx.gasPrice?.toString() || '0',
+              royaltyAmount: args?.royalty?.toString() || '0'
+            })
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching NFT sales:', err)
+      }
+
+      // 4. Get NFT minting events
       try {
         const mintEvents = await fetchLogs({
           address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
@@ -1209,6 +1298,58 @@ export function useTransactionHistory() {
         // Skip wider range fetch to avoid RPC limits
         console.log('Skipping wider range fetch to avoid RPC limits')
       }
+
+      // 5. Get RoyaltyDistributed events for the user
+      try {
+        const splitterContracts = await getAllSplitterContracts()
+        
+        for (const splitterAddress of splitterContracts) {
+          try {
+            const royaltyEvents = await fetchLogsInChunks(
+              splitterAddress as `0x${string}`,
+              {
+                type: 'event',
+                name: 'RoyaltyDistributed',
+                inputs: [
+                  { name: 'recipient', type: 'address', indexed: true },
+                  { name: 'tokenId', type: 'uint256', indexed: true },
+                  { name: 'amount', type: 'uint256', indexed: false }
+                ]
+              },
+              {
+                recipient: address
+              },
+              fromBlock,
+              currentBlock
+            )
+
+            for (const event of royaltyEvents) {
+              const tx = await publicClient.getTransaction({ hash: event.transactionHash })
+              const receipt = await publicClient.getTransactionReceipt({ hash: event.transactionHash })
+              const args = (event as any).args
+              
+              allTransactions.push({
+                id: event.transactionHash,
+                type: 'ROYALTY_PAYMENT',
+                hash: event.transactionHash,
+                timestamp: Number(tx.blockNumber),
+                from: splitterAddress,
+                to: args?.recipient || '',
+                tokenId: args?.tokenId?.toString() || '',
+                amount: args?.amount?.toString() || '0',
+                token: 'STT',
+                status: receipt.status === 'success' ? 'SUCCESS' : 'FAILED',
+                gasUsed: receipt.gasUsed.toString(),
+                gasPrice: tx.gasPrice?.toString() || '0'
+              })
+            }
+          } catch (error) {
+            console.log(`Error fetching royalty events from splitter ${splitterAddress}:`, error)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching royalty distributions:', err)
+      }
       
       // Set the real transactions (even if empty)
       setTransactions(allTransactions)
@@ -1223,7 +1364,7 @@ export function useTransactionHistory() {
 
   useEffect(() => {
     fetchTransactionHistory()
-  }, [fetchTransactionHistory])
+  }, [fetchTransactionHistory]) // Only fetch when the function changes (which happens when address/connection changes)
 
   return {
     transactions,
@@ -1251,26 +1392,38 @@ export function useRoyaltyDistributions() {
 
     try {
       const currentBlock = await publicClient.getBlockNumber()
-      const maxBlocks = BigInt(500) // Further reduced to avoid RPC limits
+      const maxBlocks = BigInt(2000) // Increased to get more historical data
       const fromBlock = currentBlock > maxBlocks ? currentBlock - maxBlocks : BigInt(0)
       
       // Get all RoyaltyDistributed events for the user
-      const royaltyEvents = await fetchLogsInChunks(
-        [], // All addresses (empty array means all)
-        {
-          type: 'event',
-          name: 'RoyaltyDistributed',
-          inputs: [
-            { name: 'recipient', type: 'address', indexed: true },
-            { name: 'amount', type: 'uint256', indexed: false }
-          ]
-        },
-        {
-          recipient: address
-        },
-        fromBlock,
-        currentBlock
-      )
+      // First, get all splitter contracts to search for events
+      const splitterContracts = await getAllSplitterContracts()
+      
+      const royaltyEvents = []
+      for (const splitterAddress of splitterContracts) {
+        try {
+          const events = await fetchLogsInChunks(
+            splitterAddress as `0x${string}`,
+            {
+              type: 'event',
+              name: 'RoyaltyDistributed',
+              inputs: [
+                { name: 'recipient', type: 'address', indexed: true },
+                { name: 'tokenId', type: 'uint256', indexed: true },
+                { name: 'amount', type: 'uint256', indexed: false }
+              ]
+            },
+            {
+              recipient: address
+            },
+            fromBlock,
+            currentBlock
+          )
+          royaltyEvents.push(...events)
+        } catch (error) {
+          console.log(`Error fetching royalty events from splitter ${splitterAddress}:`, error)
+        }
+      }
 
       const distributions: Array<{
         tokenId: string
@@ -1283,20 +1436,14 @@ export function useRoyaltyDistributions() {
       for (const event of royaltyEvents) {
         const tx = await publicClient.getTransaction({ hash: event.transactionHash })
         
-        // Try to find which NFT this splitter belongs to
-        let tokenId = 'Unknown'
-        try {
-          // We can try to find the tokenId by checking the splitter address
-          // This might require additional contract calls or event filtering
-          tokenId = 'Unknown' // For now, we'll mark as unknown
-        } catch {
-          console.log('Could not determine tokenId for splitter:', event.address)
-        }
+        // Get tokenId from the event args (now properly indexed)
+        const tokenId = (event as any).args?.tokenId?.toString() || 'Unknown'
+        const amount = (event as any).args?.amount?.toString() || '0'
 
         distributions.push({
           tokenId,
           splitterAddress: event.address,
-          amount: (event as any).args?.amount?.toString() || '0',
+          amount,
           timestamp: Number(tx.blockNumber),
           transactionHash: event.transactionHash
         })
@@ -1326,7 +1473,7 @@ export function useRoyaltyDistributions() {
 // Hook for claiming accumulated royalties from splitter contracts
 export function useRoyaltyClaiming() {
   const { address, isConnected } = useAccount()
-  const { writeContractAsync, isPending, error } = useWriteContract()
+  const { isPending, error } = useWriteContract()
   const [claimableRoyalties, setClaimableRoyalties] = useState<Array<{
     splitterAddress: string
     amount: string
@@ -1349,21 +1496,6 @@ export function useRoyaltyClaiming() {
     }
   }, [address, isConnected])
 
-  // Withdraw accumulated royalties from a specific splitter contract
-  const withdrawRoyalties = async (splitterAddress: string, tokenId: bigint) => {
-    try {
-      const txHash = await writeContractAsync({
-        address: splitterAddress as `0x${string}`,
-        abi: ROYALTY_SPLITTER_ABI,
-        functionName: 'withdraw',
-        args: [tokenId],
-      })
-      return txHash
-    } catch (err) {
-      console.error('Withdraw royalties error:', err)
-      throw err
-    }
-  }
 
   // Get creator earnings for a specific tokenId
   const getCreatorEarnings = useCallback(async (splitterAddress: string, creatorAddress: string, tokenId: bigint) => {
@@ -1387,11 +1519,156 @@ export function useRoyaltyClaiming() {
 
   return {
     claimableRoyalties,
-    withdrawRoyalties,
     getCreatorEarnings,
     isLoading: isPending,
     error,
     refetch: checkClaimableRoyalties
+  }
+}
+
+// NEW: Hook for recipient dashboard functionality
+export function useRecipientDashboard() {
+  const { address, isConnected } = useAccount()
+  const [dashboard, setDashboard] = useState<RecipientDashboard | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Get all splitter contracts that the user might be a recipient in
+  const getAllSplitterContracts = useCallback(async () => {
+    if (!address || !isConnected) return []
+
+    try {
+      // Get all NFTs to find splitter contracts
+      const totalSupply = await publicClient.readContract({
+        address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+        abi: STREAMING_ROYALTY_NFT_ABI,
+        functionName: 'nextId',
+      })
+
+      const splitterContracts: string[] = []
+      
+      for (let i = 1; i <= Number(totalSupply); i++) {
+        try {
+          const splitterAddress = await publicClient.readContract({
+            address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+            abi: STREAMING_ROYALTY_NFT_ABI,
+            functionName: 'tokenSplitters',
+            args: [BigInt(i)],
+          })
+          
+          if (splitterAddress && splitterAddress !== '0x0000000000000000000000000000000000000000') {
+            splitterContracts.push(splitterAddress)
+          }
+        } catch {
+          // Token doesn't exist, continue
+        }
+      }
+      
+      return splitterContracts
+    } catch (error) {
+      console.error('Error getting splitter contracts:', error)
+      return []
+    }
+  }, [address, isConnected])
+
+  // Fetch recipient dashboard data
+  const fetchDashboard = useCallback(async () => {
+    if (!address || !isConnected) {
+      setDashboard(null)
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const splitterContracts = await getAllSplitterContracts()
+      
+      let totalEarnings = BigInt(0)
+      const allHistory: RoyaltyRecord[] = []
+      let totalHistoryCount = 0
+
+      // Aggregate data from all splitter contracts
+      for (const splitterAddress of splitterContracts) {
+        try {
+          // First check if the contract exists and has the function
+          const code = await publicClient.getCode({ address: splitterAddress as `0x${string}` })
+          if (!code || code === '0x') {
+            console.log(`Splitter contract ${splitterAddress} does not exist, skipping`)
+            continue
+          }
+
+          // Check if the user is a recipient in this splitter by checking their earnings
+          let earnings: bigint
+          try {
+            earnings = await publicClient.readContract({
+              address: splitterAddress as `0x${string}`,
+              abi: ROYALTY_SPLITTER_ABI,
+              functionName: 'getRecipientTotalEarnings',
+              args: [address as `0x${string}`],
+            }) as bigint
+          } catch {
+            console.log(`User is not a recipient in splitter ${splitterAddress}, skipping`)
+            continue
+          }
+          
+          totalEarnings += earnings
+
+          // Get history count only if user has earnings
+          let historyCount = 0
+          if (earnings > 0) {
+            try {
+              const count = await publicClient.readContract({
+                address: splitterAddress as `0x${string}`,
+                abi: ROYALTY_SPLITTER_ABI,
+                functionName: 'getRecipientHistoryCount',
+                args: [address as `0x${string}`],
+              })
+              
+              historyCount = Number(count)
+              totalHistoryCount += historyCount
+            } catch (error) {
+              console.log(`Error getting history count from splitter ${splitterAddress}:`, error)
+            }
+          }
+
+          // Get history (limit to recent entries to avoid gas issues)
+          if (historyCount > 0) {
+            const history = await publicClient.readContract({
+              address: splitterAddress as `0x${string}`,
+              abi: ROYALTY_SPLITTER_ABI,
+              functionName: 'getRecipientHistoryPaginated',
+              args: [address as `0x${string}`, BigInt(0), BigInt(50)], // Get last 50 entries
+            })
+            
+            allHistory.push(...(history as RoyaltyRecord[]))
+          }
+        } catch (error) {
+          console.error(`Error fetching data from splitter ${splitterAddress}:`, error)
+        }
+      }
+
+      // Sort history by timestamp (newest first)
+      allHistory.sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+
+      setDashboard({
+        totalEarnings,
+        history: allHistory,
+        historyCount: totalHistoryCount
+      })
+    } catch (error) {
+      console.error('Error fetching recipient dashboard:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [address, isConnected, getAllSplitterContracts])
+
+
+  useEffect(() => {
+    fetchDashboard()
+  }, [fetchDashboard])
+
+  return {
+    dashboard,
+    isLoading,
+    refetch: fetchDashboard
   }
 }
 
@@ -1445,6 +1722,13 @@ export function useRoyaltyRouter() {
   // List NFT for sale
   const listNFT = async (tokenId: bigint, price: string) => {
     try {
+      console.log('listNFT called with:', {
+        tokenId: tokenId.toString(),
+        price,
+        priceType: typeof price,
+        parsedPrice: parseEther(price).toString()
+      })
+
       // First, check if the router is already approved
       const currentApproval = await publicClient.readContract({
         address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
@@ -1452,6 +1736,8 @@ export function useRoyaltyRouter() {
         functionName: 'getApproved',
         args: [tokenId],
       })
+
+      console.log('Current approval:', currentApproval, 'Router address:', CONTRACT_ADDRESSES.ROYALTY_ROUTER)
 
       // If not approved, approve first
       if (currentApproval !== CONTRACT_ADDRESSES.ROYALTY_ROUTER) {
@@ -1462,12 +1748,19 @@ export function useRoyaltyRouter() {
       }
 
       // Now list the NFT
+      console.log('Calling listNFT contract function with:', {
+        tokenId,
+        priceInWei: parseEther(price).toString()
+      })
+      
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.ROYALTY_ROUTER,
         abi: ROYALTY_ROUTER_ABI,
         functionName: 'listNFT',
         args: [tokenId, parseEther(price)],
       })
+      
+      console.log('List NFT transaction hash:', txHash)
       return txHash
     } catch (err) {
       console.error('List NFT error:', err)
@@ -1525,6 +1818,7 @@ export function useActiveListings() {
       index,
       seller: listing?.seller,
       price: listing?.price?.toString(),
+      priceInEther: listing?.price ? (Number(listing.price) / 1e18).toFixed(2) : '1',
       active: listing?.active
     })),
     isLoading,
@@ -1919,5 +2213,121 @@ export function useSTTToken() {
     hash,
     isPending,
     error,
+  }
+}
+
+// NEW: Hook for NFT-specific earnings per recipient
+export function useNFTEarnings() {
+  const { address, isConnected } = useAccount()
+  const [nftEarnings, setNftEarnings] = useState<NFTEarnings[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const fetchNFTEarnings = useCallback(async () => {
+    if (!address || !isConnected) {
+      setNftEarnings([])
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      // Get all NFTs to find splitter contracts
+      const totalSupply = await publicClient.readContract({
+        address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+        abi: STREAMING_ROYALTY_NFT_ABI,
+        functionName: 'nextId',
+      })
+
+      const earnings: NFTEarnings[] = []
+      
+      for (let i = 1; i <= Number(totalSupply); i++) {
+        try {
+          const tokenId = BigInt(i)
+          
+          // Get splitter address for this NFT
+          const splitterAddress = await publicClient.readContract({
+            address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+            abi: STREAMING_ROYALTY_NFT_ABI,
+            functionName: 'tokenSplitters',
+            args: [tokenId],
+          })
+          
+          if (splitterAddress && splitterAddress !== '0x0000000000000000000000000000000000000000') {
+            // First check if the contract exists
+            const code = await publicClient.getCode({ address: splitterAddress as `0x${string}` })
+            if (!code || code === '0x') {
+              console.log(`Splitter contract ${splitterAddress} does not exist, skipping NFT ${i}`)
+              continue
+            }
+
+            // Get NFT name from splitter
+            const nftName = await publicClient.readContract({
+              address: splitterAddress as `0x${string}`,
+              abi: ROYALTY_SPLITTER_ABI,
+              functionName: 'nftName',
+            })
+            
+            // Get total earnings for this recipient from this NFT
+            let totalEarnings: bigint
+            try {
+              totalEarnings = await publicClient.readContract({
+                address: splitterAddress as `0x${string}`,
+                abi: ROYALTY_SPLITTER_ABI,
+                functionName: 'getRecipientTotalEarnings',
+                args: [address as `0x${string}`],
+              }) as bigint
+            } catch {
+              console.log(`User is not a recipient in splitter ${splitterAddress}, skipping NFT ${i}`)
+              continue
+            }
+            
+            // Get shares to calculate percentage
+            const shares = await publicClient.readContract({
+              address: splitterAddress as `0x${string}`,
+              abi: ROYALTY_SPLITTER_ABI,
+              functionName: 'getShares',
+            })
+            
+            // Find the recipient's share percentage
+            let sharePercentage = 0
+            for (const share of shares as any[]) {
+              if (share.account.toLowerCase() === address.toLowerCase()) {
+                sharePercentage = Number(share.bps) / 100 // Convert bps to percentage
+                break
+              }
+            }
+            
+            // Only include NFTs where the user has earnings
+            if (Number(totalEarnings) > 0) {
+              earnings.push({
+                nftName: nftName as string,
+                tokenId,
+                splitterAddress: splitterAddress as string,
+                totalEarnings: totalEarnings as bigint,
+                sharePercentage
+              })
+            }
+          }
+        } catch (error) {
+          // Token doesn't exist or other error, continue
+          console.log(`Error fetching earnings for NFT ${i}:`, error)
+        }
+      }
+      
+      setNftEarnings(earnings)
+    } catch (error) {
+      console.error('Error fetching NFT earnings:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [address, isConnected])
+
+  useEffect(() => {
+    fetchNFTEarnings()
+  }, [fetchNFTEarnings])
+
+  return {
+    nftEarnings,
+    isLoading,
+    refetch: fetchNFTEarnings
   }
 }
