@@ -1,8 +1,8 @@
 export const CONTRACT_ADDRESSES = {
-  STREAMING_ROYALTY_NFT: "0x3479FA64Ba4aC2CfbeC9afa651B7d6e3c4859281", 
-  ROYALTY_ROUTER: "0x00D6dc6B823608E3f433DF68D3e80f23Fb7F84f0",
-  ROYALTY_SPLITTER_FACTORY: "0xD42a5f3FE0Dd6E686B7B1823C9F1Fc9a6eBa2d4F",
-  STT_TOKEN: "0x34d256dC9f6e10d899dE8eDA906559Fa51a01144", 
+  STREAMING_ROYALTY_NFT: "0xEE9821B56A975f576101aC2Cc4989B4dE9deeBCA", 
+  ROYALTY_ROUTER: "0xc6287A977b81Fa6cD7aF60e3031A778f755a05E6",
+  ROYALTY_SPLITTER_FACTORY: "0x173A9618004D4E9D525C89CAd22a91E53c062042",
+  STT_TOKEN: "0x99fa4D5B0Cc9B395EA17083E03Cb9cb85Ffa6b6c", 
 } as const
 
 // Contract ABIs
@@ -751,6 +751,25 @@ export const STREAMING_ROYALTY_NFT_ABI = [
 
 export const ROYALTY_SPLITTER_FACTORY_ABI = [
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "splitter",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "creator",
+				"type": "address"
+			}
+		],
+		"name": "SplitterCreated",
+		"type": "event"
+	},
+	{
 		"inputs": [
 			{
 				"components": [
@@ -773,6 +792,11 @@ export const ROYALTY_SPLITTER_FACTORY_ABI = [
 				"internalType": "address",
 				"name": "token",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
 			}
 		],
 		"name": "createSplitter",
@@ -785,25 +809,6 @@ export const ROYALTY_SPLITTER_FACTORY_ABI = [
 		],
 		"stateMutability": "payable",
 		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "splitter",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "creator",
-				"type": "address"
-			}
-		],
-		"name": "SplitterCreated",
-		"type": "event"
 	}
 ] as const
 
@@ -1358,37 +1363,6 @@ export const ROYALTY_ROUTER_ABI = [
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "tokenId",
-				"type": "uint256"
-			}
-		],
-		"name": "buyNFT",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "tokenId",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "price",
-				"type": "uint256"
-			}
-		],
-		"name": "listNFT",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "address",
 				"name": "nft_",
 				"type": "address"
@@ -1401,6 +1375,43 @@ export const ROYALTY_ROUTER_ABI = [
 		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "buyer",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "seller",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "royalty",
+				"type": "uint256"
+			}
+		],
+		"name": "NFTBought",
+		"type": "event"
 	},
 	{
 		"anonymous": false,
@@ -1453,6 +1464,19 @@ export const ROYALTY_ROUTER_ABI = [
 		"type": "event"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			}
+		],
+		"name": "buyNFT",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "getActiveListings",
 		"outputs": [
@@ -1485,6 +1509,24 @@ export const ROYALTY_ROUTER_ABI = [
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "tokenId",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			}
+		],
+		"name": "listNFT",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{

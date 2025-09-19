@@ -20,10 +20,10 @@ This application is deployed on the **Somnia Testnet**, a specialized blockchain
 - **Decimals**: 18
 
 ### Contract Addresses
-- **StreamingRoyaltyNFT**: `0x3479FA64Ba4aC2CfbeC9afa651B7d6e3c4859281`
-- **RoyaltyRouter**: `0x00D6dc6B823608E3f433DF68D3e80f23Fb7F84f0`
-- **RoyaltySplitterFactory**: `0xD42a5f3FE0Dd6E686B7B1823C9F1Fc9a6eBa2d4F`
-- **STT Token**: `0x34d256dC9f6e10d899dE8eDA906559Fa51a01144`
+- **StreamingRoyaltyNFT**: `0xEE9821B56A975f576101aC2Cc4989B4dE9deeBCA`
+- **RoyaltyRouter**: `0xc6287A977b81Fa6cD7aF60e3031A778f755a05E6`
+- **RoyaltySplitterFactory**: `0x173A9618004D4E9D525C89CAd22a91E53c062042`
+- **STT Token**: `0x99fa4D5B0Cc9B395EA17083E03Cb9cb85Ffa6b6c`
 
 ### Supported Networks
 The application also supports multiple networks for flexibility:
