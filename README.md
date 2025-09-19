@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Somnia in Streams
 
-## Getting Started
+**Stream NFT royalties in real-time with flexible multi-recipient splits**
 
-First, run the development server:
+A decentralized application (dApp) that enables creators to mint NFTs with configurable royalty distributions, trade them on a marketplace, and track streaming royalties with real-time analytics.
 
+## Demo
+[https://streams-in-somnia.vercel.app/](https://streams-in-somnia.vercel.app/)
+
+## Features
+
+### NFT Minting
+- Create unique NFTs with custom metadata
+- Upload images and metadata to IPFS
+- Set flexible royalty rates (0-100%)
+- Configure multiple recipient addresses with custom split percentages
+
+### Marketplace
+- Browse and purchase NFTs using STT tokens
+- Automatic royalty distribution on sales
+- Real-time listing management
+- Integrated wallet connectivity
+
+### Royalty Tracking
+- Real-time streaming royalty visualization
+- Live performance analytics
+- Historical earnings tracking
+- Multi-recipient payout management
+
+### Earnings Management
+- Withdraw accumulated royalties
+- Track earnings per NFT
+- View detailed transaction history
+- Monitor splitter contract performance
+
+## Architecture
+
+### Smart Contracts
+- **`StreamingRoyaltyNFT`**: ERC721 NFT contract with per-token royalty support
+- **`RoyaltySplitter`**: Multi-recipient royalty distribution contract
+- **`RoyaltyRouter`**: Marketplace contract handling buy/sell operations
+- **`CustomToken`**: STT (Somnia Token) ERC20 contract for payments
+
+### Frontend Stack
+- **Next.js 15.5.2** with App Router
+- **React 19** with TypeScript
+- **Wagmi v2** for Web3 integration
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **Recharts** for data visualization
+
+### Storage & Infrastructure
+- **IPFS** (via Pinata) for decentralized metadata storage
+- **WalletConnect** for wallet integration
+- **Viem** for blockchain interactions
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+ 
+- npm, yarn, pnpm, or bun
+- MetaMask or compatible Web3 wallet
+- STT tokens for transactions
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/MadhuVarshaP/StreamsinSomnia.git
+   cd StreamsinSomnia
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Configure the following variables:
+   ```env
+   NEXT_PUBLIC_PINATA_API_KEY=your_pinata_api_key
+   NEXT_PUBLIC_PINATA_SECRET_KEY=your_pinata_secret_key
+   NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_walletconnect_project_id
+   ```
+
+4. **Start the development server**
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   ```
+
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## Usage
+
+### Minting an NFT
+1. Connect your wallet
+2. Navigate to "Mint NFT"
+3. Fill in NFT details (name, description, image)
+4. Set royalty rate and configure recipient splits
+5. Upload to IPFS and deploy to blockchain
+6. List for sale on the marketplace
+
+### Buying NFTs
+1. Browse the marketplace
+2. Select an NFT to purchase
+3. Ensure sufficient STT token balance
+4. Approve token spending and execute purchase
+5. Royalties automatically distribute to recipients
+
+### Tracking Earnings
+1. View "My Streams" for owned NFTs
+2. Check "Royalty Dashboard" for earnings analytics
+3. Withdraw accumulated royalties
+4. Monitor real-time performance charts
+
+## Development
+
+### Available Scripts
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev      # Start development server with Turbopack
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Project Structure
+```
+src/
+├── app/                 # Next.js App Router pages
+├── components/          # React components
+│   ├── forms/          # Form components
+│   ├── marketplace/    # NFT marketplace components
+│   ├── royalty/        # Royalty tracking components
+│   ├── streams/        # Streaming components
+│   └── ui/             # Reusable UI components
+├── hooks/              # Custom React hooks
+├── lib/                # Utility functions and configurations
+└── types/              # TypeScript type definitions
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+contracts/              # Solidity smart contracts
+├── StreamingRoyaltyNFT.sol
+├── RoyaltySplitterFactory.sol
+├── RoyaltySplitter.sol
+├── RoyaltyRouter.sol
+└── CustomToken.sol
+```
