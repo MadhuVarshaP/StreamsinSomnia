@@ -42,7 +42,7 @@ const NFT_ABI = parseAbi([
 ]);
 
 const CONTRACT_ADDRESS =
-  "0x027EEF6A26895cb9449429eeF5427DFbd6bddCe8" as `0x${string}`;
+  "0x46289AdAe22f0C6d36178B42F1A4191FfE6b3eF7" as `0x${string}`;
 
 export async function GET() {
   try {

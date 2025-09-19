@@ -26,10 +26,10 @@ This application is deployed on the **Somnia Testnet**, a specialized blockchain
 - **RoyaltySplitterFactory**: `0x173A9618004D4E9D525C89CAd22a91E53c062042`
 - **STT Token**: `0x99fa4D5B0Cc9B395EA17083E03Cb9cb85Ffa6b6c`
 =======
-- **StreamingRoyaltyNFT**: `0x027EEF6A26895cb9449429eeF5427DFbd6bddCe8`
-- **RoyaltyRouter**: `0xC309801662819Cfe3c47a9a0F3C8713be98a17EA`
-- **RoyaltySplitterFactory**: `0x19F981df090d9B07792eE3059dbC654AC6d7fa45`
-- **STT Token**: `0xA8281345C56DB6d8794d4E175fd6a2f3c45c9594`
+- **StreamingRoyaltyNFT**: `0x46289AdAe22f0C6d36178B42F1A4191FfE6b3eF7`
+- **RoyaltyRouter**: `0x2338a6E39AeA2EDeCcc2a92FDfD8BdF716Cc44Ff`
+- **RoyaltySplitterFactory**: `0xD6fbA3b59E71C90fa6F17777f39e930f674B9364`
+- **STT Token**: `0x5257829660F2c6020ace5b501458a2c57e773ab7`
 >>>>>>> origin/main
 
 ### Supported Networks
