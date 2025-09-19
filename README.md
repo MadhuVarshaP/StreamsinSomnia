@@ -16,14 +16,14 @@ This application is deployed on the **Somnia Testnet**, a specialized blockchain
 - **Chain ID**: 50312
 - **RPC URL**: https://dream-rpc.somnia.network
 - **Block Explorer**: [Shannon Explorer](https://shannon-explorer.somnia.network)
-- **Native Currency**: SOM (Somnia)
+- **Native Currency**: STT
 - **Decimals**: 18
 
 ### Contract Addresses
-- **StreamingRoyaltyNFT**: `0x3479FA64Ba4aC2CfbeC9afa651B7d6e3c4859281`
-- **RoyaltyRouter**: `0x00D6dc6B823608E3f433DF68D3e80f23Fb7F84f0`
-- **RoyaltySplitterFactory**: `0xD42a5f3FE0Dd6E686B7B1823C9F1Fc9a6eBa2d4F`
-- **STT Token**: `0x34d256dC9f6e10d899dE8eDA906559Fa51a01144`
+- **StreamingRoyaltyNFT**: `0x027EEF6A26895cb9449429eeF5427DFbd6bddCe8`
+- **RoyaltyRouter**: `0xC309801662819Cfe3c47a9a0F3C8713be98a17EA`
+- **RoyaltySplitterFactory**: `0x19F981df090d9B07792eE3059dbC654AC6d7fa45`
+- **STT Token**: `0xA8281345C56DB6d8794d4E175fd6a2f3c45c9594`
 
 ### Supported Networks
 The application also supports multiple networks for flexibility:
