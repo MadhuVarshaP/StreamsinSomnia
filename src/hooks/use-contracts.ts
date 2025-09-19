@@ -336,6 +336,7 @@ export function useMintWithSplitter() {
           args: [
             formattedShares as readonly { account: `0x${string}`; bps: bigint }[],
             CONTRACT_ADDRESSES.STT_TOKEN,
+            BigInt(0), // Placeholder tokenId - will be updated after NFT mint
           ],
         })
         
