@@ -86,6 +86,43 @@ async function fetchLogsInChunks(
   return logs
 }
 
+// Shared helper to list all royalty splitter contracts indexed by the NFT
+export async function getAllSplitterContracts(): Promise<string[]> {
+  try {
+    const totalSupply = await publicClient.readContract({
+      address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+      abi: STREAMING_ROYALTY_NFT_ABI,
+      functionName: 'nextId',
+    })
+
+    const splitterContracts: string[] = []
+    for (let i = 1; i <= Number(totalSupply); i++) {
+      try {
+        const splitterAddress = await publicClient.readContract({
+          address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
+          abi: STREAMING_ROYALTY_NFT_ABI,
+          functionName: 'tokenSplitters',
+          args: [BigInt(i)],
+        }) as string
+
+        if (
+          splitterAddress &&
+          splitterAddress !== '0x0000000000000000000000000000000000000000'
+        ) {
+          splitterContracts.push(splitterAddress)
+        }
+      } catch {
+        // Token might not exist; continue
+      }
+    }
+
+    return splitterContracts
+  } catch (error) {
+    console.error('Error getting splitter contracts:', error)
+    return []
+  }
+}
+
 // Hook for NFT contract interactions
 export function useStreamingRoyaltyNFT() {
   const { address } = useAccount()
@@ -1533,41 +1570,9 @@ export function useRecipientDashboard() {
   const [isLoading, setIsLoading] = useState(false)
 
   // Get all splitter contracts that the user might be a recipient in
-  const getAllSplitterContracts = useCallback(async () => {
+  const getAllSplitterContractsMemo = useCallback(async () => {
     if (!address || !isConnected) return []
-
-    try {
-      // Get all NFTs to find splitter contracts
-      const totalSupply = await publicClient.readContract({
-        address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
-        abi: STREAMING_ROYALTY_NFT_ABI,
-        functionName: 'nextId',
-      })
-
-      const splitterContracts: string[] = []
-      
-      for (let i = 1; i <= Number(totalSupply); i++) {
-        try {
-          const splitterAddress = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES.STREAMING_ROYALTY_NFT,
-            abi: STREAMING_ROYALTY_NFT_ABI,
-            functionName: 'tokenSplitters',
-            args: [BigInt(i)],
-          })
-          
-          if (splitterAddress && splitterAddress !== '0x0000000000000000000000000000000000000000') {
-            splitterContracts.push(splitterAddress)
-          }
-        } catch {
-          // Token doesn't exist, continue
-        }
-      }
-      
-      return splitterContracts
-    } catch (error) {
-      console.error('Error getting splitter contracts:', error)
-      return []
-    }
+    return getAllSplitterContracts()
   }, [address, isConnected])
 
   // Fetch recipient dashboard data
@@ -1579,7 +1584,7 @@ export function useRecipientDashboard() {
 
     setIsLoading(true)
     try {
-      const splitterContracts = await getAllSplitterContracts()
+      const splitterContracts = await getAllSplitterContractsMemo()
       
       let totalEarnings = BigInt(0)
       const allHistory: RoyaltyRecord[] = []
@@ -1658,7 +1663,7 @@ export function useRecipientDashboard() {
     } finally {
       setIsLoading(false)
     }
-  }, [address, isConnected, getAllSplitterContracts])
+  }, [address, isConnected, getAllSplitterContractsMemo])
 
 
   useEffect(() => {

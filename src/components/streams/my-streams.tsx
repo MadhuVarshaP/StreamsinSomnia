@@ -39,7 +39,7 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
   const { listNFT } = useRoyaltyRouter()
   const { toast } = useToast()
   const { royaltyDistributions } = useRoyaltyDistributions()
-  const { withdrawRoyalties, getCreatorEarnings } = useRoyaltyClaiming()
+  const { getCreatorEarnings } = useRoyaltyClaiming()
   const [searchTerm, setSearchTerm] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "royalty">("newest")
@@ -435,32 +435,26 @@ export function MyStreams({ onMintNew }: MyStreamsProps) {
   }, [address, isConnected, getCreatorEarnings])
 
   // Handle withdrawal of creator earnings
+  // Note: Royalties are auto-distributed in STT by the splitter; no manual withdraw is required.
   const handleWithdrawEarnings = async (tokenId: bigint, splitterAddress: string) => {
     const tokenIdStr = tokenId.toString()
-    
+
     try {
       setWithdrawingNFTs(prev => new Set(prev).add(tokenIdStr))
-      
-      await withdrawRoyalties(splitterAddress, tokenId)
-      
+
       toast({
-        title: "Earnings Withdrawn Successfully!",
-        description: `Royalty earnings for NFT #${tokenIdStr} have been transferred to your wallet`,
-        duration: 5000,
+        title: "Royalties Are Auto-Distributed",
+        description: `Earnings for NFT #${tokenIdStr} are already transferred automatically to recipients when sales occur.`,
+        duration: 6000,
       })
-      
-      // Refresh earnings data
+
+      // Optionally refresh displayed earnings
       setTimeout(() => {
         fetchCreatorEarnings()
-      }, 2000)
-      
+      }, 1000)
+
     } catch (error) {
-      console.error('Withdraw earnings error:', error)
-      toast({
-        title: "Failed to Withdraw Earnings",
-        description: error instanceof Error ? error.message : "Please try again",
-        variant: "destructive",
-      })
+      console.error('Withdraw earnings info:', error)
     } finally {
       setWithdrawingNFTs(prev => {
         const newSet = new Set(prev)
