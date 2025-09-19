@@ -35,6 +35,8 @@ A decentralized application (dApp) that enables creators to mint NFTs with confi
 
 ## Architecture
 
+<img width="4557" height="3918" alt="image" src="https://github.com/user-attachments/assets/63c34960-c647-497e-9268-62b837615a0c" />
+
 ### Smart Contracts
 - **`StreamingRoyaltyNFT`**: ERC721 NFT contract with per-token royalty support
 - **`RoyaltySplitter`**: Multi-recipient royalty distribution contract
