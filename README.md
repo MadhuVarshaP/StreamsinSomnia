@@ -7,6 +7,33 @@ A decentralized application (dApp) that enables creators to mint NFTs with confi
 ## Demo
 [https://streams-in-somnia.vercel.app/](https://streams-in-somnia.vercel.app/)
 
+## Blockchain Network
+
+This application is deployed on the **Somnia Testnet**, a specialized blockchain network designed for streaming and media applications.
+
+### Network Details
+- **Network Name**: Somnia Testnet
+- **Chain ID**: 50312
+- **RPC URL**: https://dream-rpc.somnia.network
+- **Block Explorer**: [Shannon Explorer](https://shannon-explorer.somnia.network)
+- **Native Currency**: SOM (Somnia)
+- **Decimals**: 18
+
+### Contract Addresses
+- **StreamingRoyaltyNFT**: `0x3479FA64Ba4aC2CfbeC9afa651B7d6e3c4859281`
+- **RoyaltyRouter**: `0x00D6dc6B823608E3f433DF68D3e80f23Fb7F84f0`
+- **RoyaltySplitterFactory**: `0xD42a5f3FE0Dd6E686B7B1823C9F1Fc9a6eBa2d4F`
+- **STT Token**: `0x34d256dC9f6e10d899dE8eDA906559Fa51a01144`
+
+### Supported Networks
+The application also supports multiple networks for flexibility:
+- Somnia Testnet (Primary)
+- Ethereum Mainnet
+- Ethereum Sepolia
+- Polygon
+- Arbitrum
+- Optimism
+
 ## Features
 
 ### NFT Minting
